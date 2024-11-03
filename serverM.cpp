@@ -167,3 +167,12 @@ bool ServerM::setupUDPServer()
 	printf("UDP Server is listening on port %d.\n", UDP_PORT);
 	return true;
 }
+
+int main(/*int argc, char const *argv[]*/)
+{
+	ServerM server;
+
+	std::this_thread::sleep_for(std::chrono::seconds(2));
+
+	return 0;
+}
