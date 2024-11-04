@@ -17,24 +17,24 @@ ServerA::~ServerA()
 	if(UDPSocket != -1) close (UDPSocket);
 }
 
-void ServerA::generateMembers()
-{
-	ifstream file(MEMBER_FILE);
+// void ServerA::generateMembers()
+// {
+// 	ifstream file(MEMBER_FILE);
 
-	if(!file.is_open())
-	{
-		printf("[PANIC] Error in opening file %s", MEMBER_FILE.c_str());
-	}
+// 	if(!file.is_open())
+// 	{
+// 		printf("[PANIC] Error in opening file %s", MEMBER_FILE.c_str());
+// 	}
 
-	string username;
-	string password;
+// 	string username;
+// 	string password;
 
-	while(file >> username >> password) {
-		members[username] = password;
-	}
+// 	while(file >> username >> password) {
+// 		members[username] = password;
+// 	}
 
-	file.close();
-}
+// 	file.close();
+// }
 
 bool serverA::sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr)
 {
@@ -98,7 +98,7 @@ bool serverA::setupUDPServer()
 	return true;
 }
 
-int main(int argc, char const *argv[])
+int main(/*int argc, char const *argv[]*/)
 {
 	return 0;
 }
