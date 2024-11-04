@@ -57,7 +57,7 @@ void ServerA::receiveUDPMessage()
 		sockaddr_in clientAddr;
 		clientAddr.sin_family = AF_INET;
     	clientAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-    	clientAddr.sin_port = htons(ServerA_UDP_PORT);
+    	clientAddr.sin_port = htons(SERVERM_UDP_PORT);
 		socklen_t clientAddrLen = sizeof(clientAddr);
 		ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, 0, (sockaddr*)&clientAddr, &clientAddrLen);
 		if(bytesReceived > 0)

@@ -14,7 +14,7 @@ const int serverA_UDP_PORT = 24000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int BUFFER_SIZE = 1024;
 const std::string LOCALHOST = "127.0.0.1";
 
-class ServerA
+class serverA
 {
 public:
 	ServerA();
