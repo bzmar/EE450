@@ -2,43 +2,77 @@
 
 ServerA::ServerA()
 	: UDPSocket(-1)
+	, members()
 {
+	generateMembers();
 	if(!setupUDPServer())
 	{
-		printf("Failed to create UDP server.\n");
+		if(DEBUG)
+		{
+			printf("[DEBUG]Failed to create UDP server.\n");
+		}
 		return;
 	}
-	std::thread UDPReceiveThread(&ServerA::receiveUDPMessage, this);
-	UDPReceiveThread.join();
+	else
+	{
+		printf("Server A is up and running using UDP on port %d.\n", UDP_PORT);
+	}
 }
 
 ServerA::~ServerA()
 {
-	if(UDPSocket != -1) close (UDPSocket);
+	if(UDPSocket != -1) close(UDPSocket);
 }
 
-// void ServerA::generateMembers()
-// {
-// 	ifstream file(MEMBER_FILE);
+void ServerA::generateMembers()
+{
+	std::ifstream file(MEMBER_FILE);
 
-// 	if(!file.is_open())
-// 	{
-// 		printf("[PANIC] Error in opening file %s", MEMBER_FILE.c_str());
-// 	}
+	if(!file.is_open())
+	{
+		printf("[PANIC] Error in opening file %s", MEMBER_FILE.c_str());
+	}
 
-// 	string username;
-// 	string password;
+	std::string username, password;
 
-// 	while(file >> username >> password) {
-// 		members[username] = password;
-// 	}
+	while(file >> username >> password) {
+		members[username] = password;
+	}
 
-// 	file.close();
-// }
+	file.close();
+}
+
+std::string ServerA::encryptPassword(const std::string& password)
+{
+	std::string encryptedPassword;
+
+	for(char c: password)
+	{
+		if(c >= 'A' && c <= 'Z')
+		{
+			encryptedPassword += (c - 'A' + 3) % 26 + 'A';
+		}
+		else if(c >= 'a' && c <= 'z')
+		{
+			encryptedPassword += (c - 'a' + 3) % 26 + 'a';
+		}
+		else if(c >= '0' && c <= '9')
+		{
+			encryptedPassword += (c - '0' + 3) % 10 + '0';
+		}
+		else
+		{
+			encryptedPassword += c;
+		}
+	}
+
+	return encryptedPassword;
+}
 
 bool ServerA::sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr)
 {
-	ssize_t bytesSent = sendto(UDPSocket, message.c_str(), message.size(), 0, (sockaddr*)&clientAddr, sizeof(clientAddr));
+	ssize_t bytesSent = sendto(UDPSocket, message.c_str(), message.size(), MSG_CONFIRM, 
+		(sockaddr*)&clientAddr, sizeof(clientAddr));
 	if(bytesSent < 0)
 	{
 		printf("Failed to send UDP message.\n");
@@ -51,24 +85,46 @@ bool ServerA::sendUDPMessage(const std::string& message, const sockaddr_in& clie
 
 void ServerA::receiveUDPMessage()
 {
-	while(1)
+	char buffer[BUFFER_SIZE];
+	sockaddr_in clientAddr;
+	socklen_t clientAddrLen = sizeof(clientAddr);
+	ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
+	bool authenticationResult = false;
+	if(bytesReceived > 0)
 	{
-		char buffer[BUFFER_SIZE];
-		sockaddr_in clientAddr;
-		clientAddr.sin_family = AF_INET;
-    	clientAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-    	clientAddr.sin_port = htons(SERVERM_UDP_PORT);
-		socklen_t clientAddrLen = sizeof(clientAddr);
-		ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, 0, (sockaddr*)&clientAddr, &clientAddrLen);
-		if(bytesReceived > 0)
+		buffer[bytesReceived] = '\0';
+		if(DEBUG)
 		{
-			buffer[bytesReceived] = '\0';
-			printf("Received Message from TCP Client: %s.\n", buffer);
+			printf("[DEBUG] Received from TCP Client: %s.\n", buffer);
+		}
+		std::istringstream iss(buffer);
+		std::string command, username, password;
+		iss >> command >> username >> password;
 
-			std::string response = "Message Received:" + std::string(buffer);
-			sendUDPMessage(response, clientAddr);
+		if(command.compare("./client") == 0 && !username.empty() && !password.empty())
+		{
+			printf("ServerA received username %s and password %s.\n", username.c_str(), std::string(password.length(), '*').c_str());
+			std::string encryptedPassword = encryptPassword(password);
+
+			
+			auto searchResult = members.find(username);
+			if(searchResult != members.end())
+			{
+				authenticationResult = (encryptedPassword.compare(searchResult->second) == 0);
+			}
+		}
+		else
+		{
+			if(DEBUG)
+			{
+				printf("[DEBUG] Received Invalid Command.\n");
+			}
+			//do nothing with invalid command.
 		}
 	}
+
+	std::string response = authenticationResult ? "./client success" : "./client fail";
+	sendUDPMessage(response, clientAddr);
 }
 
 bool ServerA::setupUDPServer()
@@ -100,5 +156,12 @@ bool ServerA::setupUDPServer()
 
 int main(/*int argc, char const *argv[]*/)
 {
+	ServerA server;
+
+	while(1)
+	{
+		server.receiveUDPMessage();
+	}
+
 	return 0;
 }
