@@ -30,7 +30,10 @@ void ServerA::generateMembers()
 
 	if(!file.is_open())
 	{
-		printf("[PANIC] Error in opening file %s", MEMBER_FILE.c_str());
+		if(DEBUG)
+		{
+			printf("[PANIC] Error in opening file %s", MEMBER_FILE.c_str());
+		}
 	}
 
 	std::string username, password;
@@ -75,11 +78,16 @@ bool ServerA::sendUDPMessage(const std::string& message, const sockaddr_in& clie
 		(sockaddr*)&clientAddr, sizeof(clientAddr));
 	if(bytesSent < 0)
 	{
-		printf("Failed to send UDP message.\n");
+		if(DEBUG)
+		{
+			printf("[DEBUG]Failed to send UDP message.\n");
+		}
 		return false;
 	}
-
-	printf("Sent UDP message: %s\n", message.c_str());
+	if(DEBUG)
+	{
+		printf("[DEBUG]Sent UDP message: %s\n", message.c_str());
+	}
 	return true;
 }
 
@@ -103,7 +111,7 @@ void ServerA::receiveUDPMessage()
 
 		if(command.compare("./client") == 0 && !username.empty() && !password.empty())
 		{
-			printf("ServerA received username %s and password %s.\n", username.c_str(), std::string(password.length(), '*').c_str());
+			printf("ServerA received username %s and password %s \n", username.c_str(), std::string(password.length(), '*').c_str());
 			std::string encryptedPassword = encryptPassword(password);
 
 			
@@ -123,6 +131,14 @@ void ServerA::receiveUDPMessage()
 		}
 	}
 
+	if(authenticationResult)
+	{
+		printf("Member %s has been authenticated.\n", username.c_str());
+	}
+	else
+	{
+		printf("The username %s or password %s is incorrect\n", username.c_str(), std::string(password.length(), '*').c_str());
+	}
 	std::string response = authenticationResult ? "./client success" : "./client fail";
 	sendUDPMessage(response, clientAddr);
 }
@@ -132,7 +148,10 @@ bool ServerA::setupUDPServer()
 	UDPSocket = socket(AF_INET, SOCK_DGRAM, 0);
 	if (UDPSocket < 0)
 	{
-		printf("Failed to create UDP Socket.\n");
+		if(DEBUG)
+		{
+			printf("[DEBUG] Failed to create UDP Socket.\n");
+		}
 		return false;
 	}
 
@@ -144,7 +163,10 @@ bool ServerA::setupUDPServer()
     int bindResult = bind(UDPSocket, (struct sockaddr*)&ServerAddr, sizeof(ServerAddr));
 	if(bindResult < 0)
 	{
-		printf("Failed to bind TCP socket.\n");
+		if(DEBUG)
+		{
+			printf("[DEBUG] Failed to bind TCP socket.\n");
+		}
 		close(UDPSocket);
 		UDPSocket = -1;
 		return false;
