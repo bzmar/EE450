@@ -11,7 +11,7 @@
 const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;
 const int TCP_PORT = 25000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int UDP_PORT = 24000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
-const int BUFFER_SIZE = 1024;
+const int BUFFER_SIZE = 2048;
 const std::string LOCALHOST = "127.0.0.1";
 
 class ServerM

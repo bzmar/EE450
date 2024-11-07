@@ -16,11 +16,11 @@ ServerM::ServerM()
 		return;
 	}
 
-	std::thread TCPReceiveThread(&ServerM::receiveTCPMessage, this);
-	std::thread UDPReceiveThread(&ServerM::receiveUDPMessage, this);
+	// std::thread TCPReceiveThread(&ServerM::receiveTCPMessage, this);
+	// std::thread UDPReceiveThread(&ServerM::receiveUDPMessage, this);
 
-	TCPReceiveThread.join();
-	UDPReceiveThread.join();
+	// TCPReceiveThread.join();
+	// UDPReceiveThread.join();
 };
 
 ServerM::~ServerM()
@@ -77,7 +77,7 @@ void ServerM::receiveTCPMessage()
 
 bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr)
 {
-	ssize_t bytesSent = sendto(UDPSocket, message.c_str(), message.size(), 0, (sockaddr*)&clientAddr, sizeof(clientAddr));
+	ssize_t bytesSent = sendto(UDPSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&clientAddr, sizeof(clientAddr));
 	if(bytesSent < 0)
 	{
 		printf("Failed to send UDP message.\n");
@@ -90,20 +90,23 @@ bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& clie
 
 void ServerM::receiveUDPMessage()
 {
-	while(1)
+	std::cout << "receiveUDPMessage" << std::endl;
+	char buffer[BUFFER_SIZE];
+	sockaddr_in clientAddr;
+	socklen_t clientAddrLen = sizeof(clientAddr);
+	ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, 
+		MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
+	if(bytesReceived > 0)
 	{
-		char buffer[BUFFER_SIZE];
-		sockaddr_in clientAddr;
-		socklen_t clientAddrLen = sizeof(clientAddr);
-		ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, 0, (sockaddr*)&clientAddr, &clientAddrLen);
-		if(bytesReceived > 0)
-		{
-			buffer[bytesReceived] = '\0';
-			printf("Received Message from TCP Client: %s.\n", buffer);
+		buffer[bytesReceived] = '\0';
+		printf("Received Message from TCP Client: %s.\n", buffer);
 
-			std::string response = "Message Received:" + std::string(buffer);
-			sendUDPMessage(response, clientAddr);
-		}
+		std::string response = "Message Received:" + std::string(buffer);
+		sendUDPMessage(response, clientAddr);
+	}
+	else
+	{
+		std::cout << "received nothing" << std::endl;
 	}
 }
 
@@ -171,8 +174,7 @@ bool ServerM::setupUDPServer()
 int main(/*int argc, char const *argv[]*/)
 {
 	ServerM server;
-
-	std::this_thread::sleep_for(std::chrono::seconds(2));
+	server.receiveUDPMessage();
 
 	return 0;
 }

@@ -139,7 +139,7 @@ void ServerA::receiveUDPMessage()
 	{
 		printf("The username %s or password %s is incorrect\n", username.c_str(), std::string(password.length(), '*').c_str());
 	}
-	std::string response = authenticationResult ? "./client success" : "./client fail";
+	std::string response = authenticationResult ? "./client OK" : "./client NOK";
 	sendUDPMessage(response, clientAddr);
 }
 
