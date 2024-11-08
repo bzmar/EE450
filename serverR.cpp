@@ -125,6 +125,7 @@ void ServerR::removeFromRepository(const std::string& username, const std::strin
 		}
 		else
 		{
+			membersRepository[username].erase(filename);
 			if(DEBUG)
 			{
 				printf("[DEBUG] Line removed from the repository.\n");
@@ -135,7 +136,7 @@ void ServerR::removeFromRepository(const std::string& username, const std::strin
 
 void ServerR::lookup(const std::string& username, const sockaddr_in& clientAddr)
 {
-	std::string response = std::string("lookup") + std::string(" ") + username; 
+	std::string response = std::string("results") + std::string(" ") + username; 
 	const auto& filenames = membersRepository[username];
 	for (const auto& filename : filenames)
 	{
@@ -143,6 +144,19 @@ void ServerR::lookup(const std::string& username, const sockaddr_in& clientAddr)
 	}
 	
 	sendUDPMessage(response, clientAddr);
+}
+
+void ServerR::deploy(const std::string& username, const sockaddr_in& clientAddr)
+{
+	std::string response = std::string("queue"); 
+	const auto& filenames = membersRepository[username];
+	for (const auto& filename : filenames)
+	{
+		response += std::string(" ") + filename;
+	}
+	
+	sendUDPMessage(response, clientAddr);
+	printf("Server R has finished sending the response to the main server.\n");
 }
 
 bool ServerR::sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr)
@@ -178,46 +192,128 @@ void ServerR::receiveUDPMessage()
 			printf("[DEBUG] Received from TCP Client: %s.\n", buffer);
 		}
 		std::istringstream iss(buffer);
-		std::string command, username, filename;
-		iss >> command >> username >> filename;
+		std::string command;
+		iss >> command;
 
-		if(command.compare("lookup") == 0 && !username.empty())
+		if(command.compare("lookup") == 0)
 		{
+			std::string username;
+			iss >> username;
+
 			printf("Server R has received a lookup request from the main server.\n");
-			lookup(username, clientAddr);
-			printf("Server R has finished sending the response to the main server.\n");
+			if(!username.empty())
+			{
+				lookup(username, clientAddr);
+				printf("Server R has finished sending the response to the main server.\n");
+			}
+			else
+			{
+				if(DEBUG)
+				{
+					printf("[DEBUG] No username was provided for lookup.\n");
+				}
+			}
 		}
-		else if(command.compare("push") == 0 && !username.empty() && !filename.empty())
+		else if(command.compare("push") == 0)
 		{
+			std::string username, filename;
+			iss >> username >> filename;
 			printf("Server R has received a push request from the main server.\n");
-			std::set<std::string> filenames = membersRepository[username];
-			auto searchResult = filenames.find(filename);
-			if(searchResult != filenames.end())
+			if(!username.empty() && !filename.empty())
 			{
-				addToRepository(username, filename);
-				printf("%s uploaded successfully.\n", filename.c_str());
+				std::set<std::string> filenames = membersRepository[username];
+				auto searchResult = filenames.find(filename);
+				if(searchResult == filenames.end())
+				{
+					addToRepository(username, filename);
+					printf("%s uploaded successfully.\n", filename.c_str());
+				}
+				else
+				{
+					std::string response = "confirm";
+					printf("%s exists in %s's repository; requesting overwrite confirmation.\n", filename.c_str(), username.c_str());
+					sendUDPMessage(response, clientAddr);
+				}
 			}
-			else //file already exists
+			else
 			{
-				//write code to ask for overwrite
+				if(DEBUG)
+				{
+					if(username.empty())
+					{
+						printf("[DEBUG] No username was provided for push.\n");
+					}
+					if(filename.empty())
+					{
+						printf("[DEBUG] No filename was provided for push.\n");
+					}
+				}
 			}
-
 		}
-		else if(command.compare("remove") == 0 && !username.empty() && !filename.empty())
+		else if(command.compare("remove") == 0)
 		{
 			printf("Server R has received a remove request from the main server.\n");
+			std::string username, filename;
+			iss >> username >> filename;
+			if(!username.empty() && !filename.empty())
+			{
+				std::set<std::string> filenames = membersRepository[username];
+				auto searchResult = filenames.find(filename);
+				if(searchResult == filenames.end())
+				{
+					printf("%s does not exist in the repository.\n", filename.c_str());
+				}
+				else
+				{
+					removeFromRepository(username, filename);
+					printf("Server R has received a remove request from the main server.\n");
+				}
+			}
+			else
+			{
+				if(DEBUG)
+				{
+					if(username.empty())
+					{
+						printf("[DEBUG] No username was provided for push.\n");
+					}
+					if(filename.empty())
+					{
+						printf("[DEBUG] No filename was provided for push.\n");
+					}
+				}
+			}
 		}
 		else if(command.compare("deploy") == 0)
 		{
 			printf("Server R has received a deploy request from the main server.\n");
+			std::string username;
+			iss >> username;
+			deploy(username, clientAddr);
+		}
+		else if(command.compare("confirm") == 0)
+		{
+			std::string username, filename;
+			iss >> username >> filename;
+
+			if(username.empty() || filename.empty())
+			{
+				printf("Overwrite denied.\n");
+			}
+			else
+			{
+				removeFromRepository(username,filename);
+				addToRepository(username,filename);
+				printf("User requested overwrite; overwrite successful.\n");
+			}
 		}
 		else
 		{
+			//do nothing with invalid command
 			if(DEBUG)
 		 	{
 		 		printf("[DEBUG] Received Invalid Command.\n");
 		 	}
-		 	//do nothing with invalid command.
 		}
 	}
 }

@@ -32,6 +32,7 @@ public:
 
 private:
 	void lookup(const std::string&, const sockaddr_in&);
+	void deploy(const std::string&, const sockaddr_in&);
 	void generateRepository();
 	void addToRepository(const std::string&, const std::string&);
 	void removeFromRepository(const std::string&, const std::string&);
