@@ -1,7 +1,7 @@
 # Compiler
 CXX = g++
 # Compiler flags
-CXXFLAGS = -std=c++11 -Wall -Wextra -pthread
+CXXFLAGS = -std=c++11 -Wall -Wextra
 
 # Source files
 CLIENT_SRC = client.cpp
