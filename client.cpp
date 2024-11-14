@@ -1,20 +1,17 @@
 #include "client.h"
 
-Client::Client()
-	: isAuthenticated()
-	, username()
-	, password()
+Client::Client(const std::string un, const std::string pw)
+	: isMember()
+	, username(un)
+	, password(pw)
 	, TCPSocket(-1)
 {
-	if(!setupTCPServer())
+	if( ((username.compare("guest") != 0) && (password.compare("guest") != 0)) ||
+		(username.empty() && password.empty()) )
 	{
-		printf("Failed to create TCP server.\n");
-		return;
+		getLogin();
 	}
-	else
-	{
-		printf("The client is up and running.\n");
-	}
+	std::cout << username << " " << password << std::endl;
 };
 
 Client::~Client()
@@ -39,7 +36,7 @@ bool Client::setupTCPClient()
     if (connect(TCPSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
         printf("Failed connection with the server.\n");
         close(TCPSocket);
-        TCPSocket(-1);
+        TCPSocket = -1;
         return false;
     }
     
@@ -53,7 +50,7 @@ bool Client::setupTCPClient()
         return false;
     }
 
-    printf("Connected from local IP: %s on port: %s", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+    printf("Connected from local IP: %s on port: %d", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
     return true;
 }
 
@@ -66,12 +63,24 @@ bool Client::receiveMessage(std::string& response)
 	}
 
 	char buffer[BUFFER_SIZE];
-	ssize_t bytes_received = recv(TCPSocket, buffer, sizeof(buffer) - 1, 0);
+	ssize_t bytesReceived = recv(TCPSocket, buffer, sizeof(buffer) - 1, 0);
 	if(bytesReceived > 0)
 	{
+		sockaddr_in localAddr;
+    	socklen_t addrlen = sizeof(localAddr);
+    	int getsock_check = getsockname(TCPSocket, (struct sockaddr*)&localAddr, &addrlen);
+    	if (getsock_check == -1) 
+    	{
+        	printf("Failed to getsockname().\n");
+        	close(TCPSocket);
+        	TCPSocket = -1;
+        	return false;
+    	}
+    	printf("The client received the response from the main server using TCP over port %d.", ntohs(localAddr.sin_port));
+
 		buffer[bytesReceived] = '\0';
 		printf("Received Message from TCP Client: %s.\n", buffer);
-		response = "Message Received:" + std::to_string(buffer);
+		response = std::string(buffer);
 		return true;
 	}
 	
@@ -94,39 +103,365 @@ bool Client::sendMessage(const std::string& message)
 		return false;
 	}
 
-	printf("Sent Message: %s.\n", message);
+	printf("Sent Message: %s.\n", message.c_str());
+	return true;
 		
 }
 
-void Client::promptLogin(string &username, string &password)
+void Client::getLogin()
 {
 	while(username.empty())
 	{
 		printf("Please enter username (usename cannot be empty): ");
-		std::getline(std::cin, username)
+		std::getline(std::cin, username);
 	}
 	while(password.empty())
 	{
 		printf("Please enter password (password cannot be empty): ");
-		std::getline(std::cin, password)
+		std::getline(std::cin, password);
 	}
 }
 
 
-int main(int argc, char const *argv[])
+bool Client::getAuthentication()
 {
-	Client c;
-	if(argc == 3)
+	if((username.compare("guest") == 0) && (password.compare("guest") == 0))
 	{
-	 	c.username = argv[1];
-		c.password = argv[2];
+		isMember = false;
+		return true;
 	}
 	else
 	{
-		c.promptLogin(c.username, c.password)
+		const std::string command = std::string("login ") + username + std::string(" ") + password;
+		sendMessage(command);
+
+		std::string response;
+		bool receivedResponse;
+		do
+		{
+			receivedResponse = receiveMessage(response);
+		}
+		while (!receivedResponse);
+	
+		std::istringstream iss(response);
+		std::string key, result;
+		iss >> key >> result;
+		if(key.compare("login") != 0)
+		{
+			printf("The response does not contain the command sent");
+		}
+		if(key.compare("login") == 0 && result.compare(std::string("OK")) == 0)
+		{
+			isMember = true;
+			printf("You have been granted member access.\n");
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Client::getUserCommand(std::string& command)
+{
+	if(isMember)
+	{
+		printf("Please enter the command:\n<lookup <username>>\n<push <filename>>\n<remove <filename>>\n<deploy>\n<log>\n");
+	}
+	else //guest
+	{
+		printf("Please enter the command:\n<lookup <username>>\n");
+	}
+	std::getline(std::cin, command);
+	command.erase(std::remove(command.begin(), command.end(), '<'), command.end());
+	command.erase(std::remove(command.begin(), command.end(), '>'), command.end());
+	std::istringstream iss(command);
+	std::string action, parameter;
+	iss >> action >> parameter;
+
+	bool validCommand = false;
+	if(isMember)
+	{
+		validCommand = (VALID_MEMBER_ACTIONS.find(action) != VALID_MEMBER_ACTIONS.end());
+		if(validCommand)
+		{
+			if(action.compare("lookup") == 0)
+			{
+				if(parameter.empty())
+				{
+					command += std::string(" ") + username;
+					printf("Username is not specified. Will lookup %s", username.c_str());
+				}
+				validCommand = true;
+			}
+			else if(action.compare("push") == 0)
+			{
+				if(parameter.empty())
+				{
+					validCommand = false;
+					printf("Error: Filename is required. Please specify a filename to push.");
+				}
+				else
+				{
+					command = action + std::string(" ") + parameter;
+					validCommand = true;
+				}
+			}
+			else if(action.compare("remove") == 0)
+			{
+				if(parameter.empty())
+				{
+					validCommand = false;
+					printf("Error: Filename is required. Please specify a filename to remove.");
+				}
+				else
+				{
+					command = action + std::string(" ") + parameter;
+					validCommand = true;
+				}
+			}
+			else //deploy or log
+			{
+				command = action;
+			}
+			validCommand = !parameter.empty();
+		}
+	}
+	else
+	{
+		validCommand = (VALID_GUEST_ACTIONS.find(action) != VALID_GUEST_ACTIONS.end());
+		if(validCommand)
+		{
+			if(parameter.empty())
+			{
+				validCommand = false;
+				printf("Error: Username is required. Please specify a username to lookup.");
+			}
+			else
+			{
+				command = action + std::string(" ") + parameter;
+				validCommand = true;
+			}
+		}
 	}
 
-	//authentication
+	return validCommand;
+}
+
+void Client::handleUserCommand(const std::string& command)
+{
+	std::istringstream iss(command);
+	std::string action, parameter;
+	iss >> action >> parameter;
+
+	if(action.compare("lookup") == 0)
+	{
+		printf("%s sent a lookup request for %s to the main server", username.c_str(), parameter.c_str());
+	}
+	else if(action.compare("push") == 0)
+	{
+		printf("%s sent a push request to the main server for file: %s", username.c_str(), parameter.c_str());
+	}
+	else if(action.compare("remove") == 0)
+	{
+		printf("%s sent a remove request to the main server for file %s", username.c_str(), parameter.c_str());
+	}
+	else if(action.compare("deploy") == 0)
+	{
+		printf("%s sent a deploy request to the main server", username.c_str());
+	}
+	else if(action.compare("log") == 0)
+	{
+		printf("%s sent a log request to the main server", username.c_str());
+	}
+	sendMessage(command);
+}
+
+bool Client::handleServerResponse(const std::string& response)
+{
+	std::istringstream iss(response);
+	std::string action;
+	iss >> action;
+
+	if(action.compare("lookup") == 0)
+	{
+		std::string result, un;
+		iss >> result >> un;
+		if(result.compare("UNF") == 0)
+		{
+			printf("%s does not exist. Please try again.\n", un.c_str());
+		}
+		else if(result.compare("UF") == 0)
+		{
+			std::string file;
+			bool isEmpty = true;
+			while (iss >> file)
+			{
+				if(isEmpty)
+				{
+					printf("%s's repository:\n", un.c_str());
+				}
+				isEmpty = false;
+				printf("%s\n", file.c_str());
+			}
+			if(isEmpty)
+			{
+				printf("Empty Repository.\n");
+			}
+		}
+		printf("----Start a new request----\n");
+	}
+	else if(action.compare("push") == 0)
+	{
+		std::string result;
+		iss >> result;
+		if(result.compare("overwrite") == 0)
+		{
+			std::string filename, response;
+			iss >> filename;
+			printf("%s exists in %s's repository, do you want to overwrite (Y/N)?", filename.c_str(), username.c_str());
+			std::getline(std::cin, response);
+			if(response.compare("Y") == 0)
+			{
+				response = std::string("push overwrite yes");
+			}
+			else if(response.compare("N") == 0)
+			{
+				response = std::string("push overwrite no");
+			}
+			sendMessage(response);
+			return false;
+		}
+		else if(result.compare("OK") == 0)
+		{
+			std::string filename;
+			iss >> filename;
+			printf("%s pushed successfully.", filename.c_str());
+		}
+		else
+		{
+			std::string filename;
+			iss >> filename;
+			printf("%s was not pushed successfully.", filename.c_str());
+		}
+		
+	}
+	else if(action.compare("remove") == 0)
+	{
+		std::string result;
+		iss >> result;
+		if(result.compare("OK") == 0)
+		{
+			printf("The remove request was successful.");
+		}
+		else
+		{
+			printf("The remove request was unsuccessful.");
+		}
+	}
+	else if(action.compare("deploy") == 0)
+	{
+		std::string result, file;
+		iss >> result;
+		if(result.compare("OK") == 0)
+		{
+			printf("The following files in %s repository have been deployed:\n", username.c_str());
+			while (iss >> file)
+			{
+				printf("%s\n", file.c_str());
+			}
+		}
+		else
+		{
+			printf("Deployment request unsuccessful.");
+		}
+	}
+	// else if(action.compare("log") == 0)
+	// {
+		
+	// }
+	return true;
+}
+
+// void Client::setUsername(const std::string un)
+// {
+// 	username = un;
+// }
+// void Client::setPassword(const std::string pw)
+// {
+// 	password = pw;
+// }
+// void Client::setAuthenticationStatus(bool status)
+// {
+// 	// isAuthenticated = status;
+// }
+// bool Client::isClientAuthenticatedAsMember()
+// {
+// 	return isMember;
+// }
+
+int main(int argc, char const *argv[])
+{
+	std::string username;
+	std::string password;
+	if(argc == 3)
+	{
+		username = argv[1];
+		password = argv[2];
+	}
+
+	Client* c = new Client(username, password);
+	
+	while(!c->setupTCPClient())
+	{
+		printf("Failed to create TCP server.\n");
+	}
+
+	printf("The client is up and running.\n");
+
+	bool result = c->getAuthentication();
+	do
+	{
+		c->getLogin();
+		result = c->getAuthentication();
+		if(!result)
+		{
+			printf("The credentials are incorrect. Please try again.\n");
+		}
+		
+	}
+	while(!result);
+
+	while(1)
+	{
+		std::string command;
+		bool validCommand = c->getUserCommand(command);
+		do
+		{
+			command.clear();
+			printf("The command was entered incorrectly. Please try again.\n");
+			validCommand = c->getUserCommand(command);
+		}
+		while(!validCommand);
+
+		c->handleUserCommand(command);
+
+		std::string response;
+		bool messageReceived = c->receiveMessage(response);
+		do
+		{
+			messageReceived = c->receiveMessage(response);
+		} while (!messageReceived);
+
+		bool completedTransaction = c->handleServerResponse(response);
+
+		do
+		{
+			do
+			{
+				messageReceived = c->receiveMessage(response);
+			} while (!messageReceived);
+			completedTransaction = c->handleServerResponse(response);
+		} while(!completedTransaction);
+	}
 
 	return 0;
 }
