@@ -7,6 +7,8 @@
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <vector>
+#include <mutex>
 
 const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;
 const int TCP_PORT = 25000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
@@ -21,20 +23,26 @@ class ServerM
 		~ServerM();
 
 		//Handle TCP Communication
-		bool sendTCPMessage(const std::string& message);
-		void receiveTCPMessage();
+		void acceptTCPConnection();
+		void handleTCPClient(int);
+		std::string receiveTCPMessage(int clientSocket);
+		bool sendTCPMessage(int clientSocket, const std::string& message);
+		
 
 		//Handle UDP Communication
 		bool sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr);
 		void receiveUDPMessage();
 
-	private:
-		//setup servers
 		bool setupTCPServer();
 		bool setupUDPServer();
 
+	private:
+
 		//socket descriptors
-		int TCPSocket;
-		int UDPSocket;
-		int TCPClientSocket;
+		int TCPServerSocket;
+		int UDPServerSocket;
+		sockaddr_in TCPServerAddr; // serverM TCP address
+		sockaddr_in UDPServerAddr; // serverM UDP address
+		std::vector<int> TCPClientSockets; //member client, guest client
+		std::mutex clientMutex;
 };

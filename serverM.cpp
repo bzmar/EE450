@@ -1,21 +1,12 @@
 #include "serverM.h"
 
 ServerM::ServerM()
-	: TCPSocket(-1)
-	, UDPSocket(-1)
-	, TCPClientSocket(-1)
+	: TCPServerSocket(-1)
+	, UDPServerSocket(-1)
+	, TCPServerAddr()
+	, UDPServerAddr()
+	, TCPClientSockets()
 {
-	if(!setupTCPServer())
-	{
-		printf("Failed to create TCP server.\n");
-		return;
-	}
-	if(!setupUDPServer())
-	{
-		printf("Failed to create UDP server.\n");
-		return;
-	}
-
 	// std::thread TCPReceiveThread(&ServerM::receiveTCPMessage, this);
 	// std::thread UDPReceiveThread(&ServerM::receiveUDPMessage, this);
 
@@ -25,23 +16,112 @@ ServerM::ServerM()
 
 ServerM::~ServerM()
 {
-	if(TCPSocket != -1) close(TCPSocket);
-	if(UDPSocket != -1) close(UDPSocket);
-	if(TCPClientSocket != -1) close(TCPClientSocket);
+	if(TCPServerSocket != -1) close(TCPServerSocket);
+	if(UDPServerSocket != -1) close(UDPServerSocket);
+	// if(TCPClientSocket1 != -1) close(TCPClientSocket1);
+	// if(TCPClientSocket2 != -1) close(TCPClientSocket2);
 }
 
-/*
-sendTCPMessage: Function to send a 
-*/
-bool ServerM::sendTCPMessage(const std::string& message)
+bool ServerM::setupTCPServer()
 {
-	if(TCPClientSocket == -1)
+	TCPServerSocket = socket(AF_INET, SOCK_STREAM, 0);
+	if (TCPServerSocket < 0)
+	{
+		printf("Failed to create TCP Socket.\n");
+		return false;
+	}
+
+	sockaddr_in TCPServerAddr;
+	TCPServerAddr.sin_family = AF_INET;
+    TCPServerAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+    TCPServerAddr.sin_port = htons(TCP_PORT);
+
+    int bindResult = bind(TCPServerSocket, (struct sockaddr*)&TCPServerAddr, sizeof(TCPServerAddr));
+	if(bindResult < 0)
+	{
+		printf("Failed to bind TCP socket.\n");
+		close(TCPServerSocket);
+		return false;
+	}
+
+	int listenResult = listen(TCPServerSocket, 10);
+	if(listenResult < 0)
+	{
+		printf("TCP Socket failed to listen.\n");
+		close(TCPServerSocket);
+		return false;
+	}
+
+	printf("TCP Server is listening on port %d.\n", TCP_PORT);
+
+	return true;
+}
+
+
+bool ServerM::setupUDPServer()
+{
+	UDPServerSocket = socket(AF_INET, SOCK_DGRAM, 0);
+	if (UDPServerSocket < 0)
+	{
+		printf("Failed to create UDP Socket.\n");
+		return false;
+	}
+
+	sockaddr_in UDPServerAddr;
+	UDPServerAddr.sin_family = AF_INET;
+    UDPServerAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+    UDPServerAddr.sin_port = htons(UDP_PORT);
+
+    int bindResult = bind(UDPServerSocket, (struct sockaddr*)&UDPServerAddr, sizeof(UDPServerAddr));
+	if(bindResult < 0)
+	{
+		printf("Failed to bind TCP socket.\n");
+		close(UDPServerSocket);
+		return false;
+	}
+
+	printf("UDP Server is listening on port %d.\n", UDP_PORT);
+	return true;
+}
+
+void ServerM::acceptTCPConnection()
+{
+	struct sockaddr_in clientAddr;
+	socklen_t clientAddrLen = sizeof(clientAddr);
+	int clientSocket;
+	clientSocket = accept(TCPServerSocket, (sockaddr*)&clientAddr, (socklen_t*)&clientAddrLen);
+	if(clientSocket < 0)
+	{
+		printf("Failed to accept TCP Client.\n");
+	}
+	else
+	{
+		printf("Connected to TCP Client.\n");
+		std::lock_guard<std::mutex> lock(clientMutex);
+		TCPClientSockets.push_back(clientSocket);
+
+		std::thread clientThread(&ServerM::handleTCPClient, this, clientSocket);
+		clientThread.detach();
+	}
+}
+
+void ServerM::handleTCPClient(int clientSocket)
+{
+	receiveTCPMessage(clientSocket);
+
+	close(clientSocket);
+	clientSocket = -1;
+}
+
+bool ServerM::sendTCPMessage(int clientSocket, const std::string& message)
+{
+	if(clientSocket == -1)
 	{
 		printf("No active TCP client connection.\n");
 		return false;
 	}
 
-	ssize_t bytesSent = send(TCPClientSocket, message.c_str(), message.size(), 0);
+	ssize_t bytesSent = send(clientSocket, message.c_str(), message.size(), 0);
 	if(bytesSent < 0)
 	{
 		printf("Failed to send TCP message.\n");
@@ -52,32 +132,22 @@ bool ServerM::sendTCPMessage(const std::string& message)
 	return true;
 }
 
-void ServerM::receiveTCPMessage()
+std::string ServerM::receiveTCPMessage(int clientSocket)
 {
-	while(1)
+	char buffer[BUFFER_SIZE];
+	ssize_t bytesReceived;
+	while((bytesReceived = read(clientSocket, buffer, sizeof(buffer)-1)) > 0)
 	{
-		TCPClientSocket = accept(TCPSocket, nullptr, nullptr);
-		if(TCPClientSocket < 0)
-		{
-			printf("Failed to accept TCP Client.\n");
-			continue;
-		}
-
-		char buffer[BUFFER_SIZE];
-		ssize_t bytesReceived;
-		while((bytesReceived = recv(TCPClientSocket, buffer, sizeof(buffer) -1, 0)) > 0)
-		{
-			buffer[bytesReceived] = '\0';
-			printf("Received Message from TCP Client: %s.\n", buffer);
-		}
-		close(TCPClientSocket);
-		TCPClientSocket = -1;
+		buffer[bytesReceived] = '\0';
+		printf("Received Message from TCP Client: %s.\n", buffer);
 	}
+
+	return std::string(buffer);
 }
 
 bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr)
 {
-	ssize_t bytesSent = sendto(UDPSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&clientAddr, sizeof(clientAddr));
+	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&clientAddr, sizeof(clientAddr));
 	if(bytesSent < 0)
 	{
 		printf("Failed to send UDP message.\n");
@@ -94,7 +164,7 @@ void ServerM::receiveUDPMessage()
 	char buffer[BUFFER_SIZE];
 	sockaddr_in clientAddr;
 	socklen_t clientAddrLen = sizeof(clientAddr);
-	ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, 
+	ssize_t bytesReceived = recvfrom(UDPServerSocket, buffer, sizeof(buffer)-1, 
 		MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
 	if(bytesReceived > 0)
 	{
@@ -110,71 +180,26 @@ void ServerM::receiveUDPMessage()
 	}
 }
 
-bool ServerM::setupTCPServer()
-{
-	TCPSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (TCPSocket < 0)
-	{
-		printf("Failed to create TCP Socket.\n");
-		return false;
-	}
-
-	sockaddr_in serverAddr;
-	serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-    serverAddr.sin_port = htons(TCP_PORT);
-
-    int bindResult = bind(TCPSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
-	if(bindResult < 0)
-	{
-		printf("Failed to bind TCP socket.\n");
-		close(TCPSocket);
-		return false;
-	}
-
-	int listenResult = listen(TCPSocket, 10);
-	if(listenResult < 0)
-	{
-		printf("TCP Socket failed to listen.\n");
-		close(TCPSocket);
-		return false;
-	}
-
-	printf("TCP Server is listening on port %d.\n", TCP_PORT);
-	return true;
-}
-
-
-bool ServerM::setupUDPServer()
-{
-	UDPSocket = socket(AF_INET, SOCK_DGRAM, 0);
-	if (UDPSocket < 0)
-	{
-		printf("Failed to create UDP Socket.\n");
-		return false;
-	}
-
-	sockaddr_in serverAddr;
-	serverAddr.sin_family = AF_INET;
-    serverAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-    serverAddr.sin_port = htons(UDP_PORT);
-
-    int bindResult = bind(UDPSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr));
-	if(bindResult < 0)
-	{
-		printf("Failed to bind TCP socket.\n");
-		close(UDPSocket);
-		return false;
-	}
-
-	printf("UDP Server is listening on port %d.\n", UDP_PORT);
-	return true;
-}
-
 int main(/*int argc, char const *argv[]*/)
 {
-	ServerM server;
-	server.receiveUDPMessage();
+	ServerM* m = new ServerM();
+	
+	if(!m->setupTCPServer())
+	{
+		printf("Failed to create TCP server.\n");
+		// return;
+	}
+	if(!m->setupUDPServer())
+	{
+		printf("Failed to create UDP server.\n");
+		// return;
+	}
+
+	while(1)
+	{
+		m->acceptTCPConnection();
+	}
+
 
 	return 0;
 }
