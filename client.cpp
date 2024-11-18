@@ -50,7 +50,7 @@ bool Client::setupTCPClient()
         return false;
     }
 
-    printf("Connected from local IP: %s on port: %d", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+    printf("Connected from local IP: %s on port: %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
     return true;
 }
 
@@ -114,11 +114,13 @@ void Client::getLogin()
 	{
 		printf("Please enter username (usename cannot be empty): ");
 		std::getline(std::cin, username);
+		std::cout << "[DEBUG] User Entered username: " << username << std::endl;
 	}
 	while(password.empty())
 	{
 		printf("Please enter password (password cannot be empty): ");
 		std::getline(std::cin, password);
+		std::cout << "[DEBUG] User Entered password: " << password << std::endl;
 	}
 }
 
@@ -136,7 +138,7 @@ bool Client::getAuthentication()
 		sendMessage(command);
 
 		std::string response;
-		bool receivedResponse;
+		bool receivedResponse = false;
 		do
 		{
 			receivedResponse = receiveMessage(response);
@@ -146,6 +148,7 @@ bool Client::getAuthentication()
 		std::istringstream iss(response);
 		std::string key, result;
 		iss >> key >> result;
+		std::cout << key << ", " << result << std::endl;
 		if(key.compare("login") != 0)
 		{
 			printf("The response does not contain the command sent");
@@ -381,23 +384,6 @@ bool Client::handleServerResponse(const std::string& response)
 	return true;
 }
 
-// void Client::setUsername(const std::string un)
-// {
-// 	username = un;
-// }
-// void Client::setPassword(const std::string pw)
-// {
-// 	password = pw;
-// }
-// void Client::setAuthenticationStatus(bool status)
-// {
-// 	// isAuthenticated = status;
-// }
-// bool Client::isClientAuthenticatedAsMember()
-// {
-// 	return isMember;
-// }
-
 int main(int argc, char const *argv[])
 {
 	std::string username;
@@ -420,15 +406,13 @@ int main(int argc, char const *argv[])
 	bool result = c->getAuthentication();
 	do
 	{
-		c->getLogin();
 		result = c->getAuthentication();
 		if(!result)
 		{
 			printf("The credentials are incorrect. Please try again.\n");
 		}
 		
-	}
-	while(!result);
+	} while(!result);
 
 	while(1)
 	{

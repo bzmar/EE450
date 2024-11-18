@@ -107,10 +107,83 @@ void ServerM::acceptTCPConnection()
 
 void ServerM::handleTCPClient(int clientSocket)
 {
-	receiveTCPMessage(clientSocket);
+	std::string clientMessage = receiveTCPMessage(clientSocket);
+
 
 	close(clientSocket);
 	clientSocket = -1;
+}
+
+bool ServerM::getResponseFromServer(std::string& response)
+{
+	bool responseFromServerReceived = false;
+	std::cout << (responseFromServerReceived ? "true" : "false") << std::endl;
+	do
+	{
+		std::cout << "this should print once" << std::endl;
+		responseFromServerReceived = receiveUDPMessage(response);
+	}
+	while(!responseFromServerReceived);
+
+	return responseFromServerReceived;
+}
+
+void ServerM::processReceivedMessageFromClient(int clientSocket, const std::string& message)
+{
+	std::istringstream iss(message.c_str());
+	std::string action;
+	iss >> action;
+	sockaddr_in targetUDPAddr;
+	targetUDPAddr.sin_family = AF_INET;
+	targetUDPAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+
+	if(action.compare("login") == 0)
+	{
+		targetUDPAddr.sin_port = htons(SERVERA_PORT);
+		sendUDPMessage(message, targetUDPAddr);
+		std::string responseServerA;
+		bool responseServerAReceived = getResponseFromServer(responseServerA);
+		sendTCPMessage(clientSocket, responseServerA);
+	}
+	else if(action.compare("lookup") == 0)
+	{
+		targetUDPAddr.sin_port = htons(SERVERR_PORT);
+		sendUDPMessage(message, targetUDPAddr);
+		std::string responseServerR;
+		bool responseServerRReceived = getResponseFromServer(responseServerR);
+		sendTCPMessage(clientSocket, responseServerR);
+	}
+	else if(action.compare("push") == 0)
+	{
+		targetUDPAddr.sin_port = htons(SERVERR_PORT);
+		sendUDPMessage(message, targetUDPAddr);
+		std::string responseServerR;
+		bool responseServerRReceived = getResponseFromServer(responseServerR);
+		sendTCPMessage(clientSocket, responseServerR);
+	}
+	else if(action.compare("remove") == 0)
+	{
+		targetUDPAddr.sin_port = htons(SERVERR_PORT);
+		sendUDPMessage(message, targetUDPAddr);
+		std::string responseServerR;
+		bool responseServerRReceived = getResponseFromServer(responseServerR);
+		sendTCPMessage(clientSocket, responseServerR);
+	}
+	else if(action.compare("deploy") == 0)
+	{
+		
+		targetUDPAddr.sin_port = htons(SERVERR_PORT);
+		sendUDPMessage(message, targetUDPAddr);
+		std::string responseServerR;
+		bool responseServerRReceived = getResponseFromServer(responseServerR);
+
+		targetUDPAddr.sin_port = htons(SERVERD_PORT);
+		sendUDPMessage(responseServerR, targetUDPAddr);
+		std::string responseServerD;
+		bool responseServerDReceived = getResponseFromServer(responseServerD);
+
+		sendTCPMessage(clientSocket, responseServerD);
+	}
 }
 
 bool ServerM::sendTCPMessage(int clientSocket, const std::string& message)
@@ -140,14 +213,16 @@ std::string ServerM::receiveTCPMessage(int clientSocket)
 	{
 		buffer[bytesReceived] = '\0';
 		printf("Received Message from TCP Client: %s.\n", buffer);
+
+		processReceivedMessageFromClient(clientSocket, std::string(buffer));
 	}
 
 	return std::string(buffer);
 }
 
-bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr)
+bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& serveraddr)
 {
-	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&clientAddr, sizeof(clientAddr));
+	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&serveraddr, sizeof(serveraddr));
 	if(bytesSent < 0)
 	{
 		printf("Failed to send UDP message.\n");
@@ -158,7 +233,7 @@ bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& clie
 	return true;
 }
 
-void ServerM::receiveUDPMessage()
+bool ServerM::receiveUDPMessage(std::string& response)
 {
 	std::cout << "receiveUDPMessage" << std::endl;
 	char buffer[BUFFER_SIZE];
@@ -169,15 +244,18 @@ void ServerM::receiveUDPMessage()
 	if(bytesReceived > 0)
 	{
 		buffer[bytesReceived] = '\0';
-		printf("Received Message from TCP Client: %s.\n", buffer);
+		printf("Received UDPMessage: %s.\n", buffer);
 
-		std::string response = "Message Received:" + std::string(buffer);
-		sendUDPMessage(response, clientAddr);
+		response = std::string(buffer);
+		// sendUDPMessage(response, clientAddr);
+		// processReceivedMessageFromClient(clientAddr, std::string(buffer));
+		return true;
 	}
 	else
 	{
 		std::cout << "received nothing" << std::endl;
 	}
+	return false;
 }
 
 int main(/*int argc, char const *argv[]*/)

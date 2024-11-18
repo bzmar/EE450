@@ -108,8 +108,9 @@ void ServerA::receiveUDPMessage()
 		std::istringstream iss(buffer);
 		std::string command, username, password;
 		iss >> command >> username >> password;
+		std::cout << "[DEBUG] " << command << "," << username << "," << password << std::endl;
 
-		if(command.compare("./client") == 0 && !username.empty() && !password.empty())
+		if(command.compare("login") == 0 && !username.empty() && !password.empty())
 		{
 			printf("ServerA received username %s and password %s \n", username.c_str(), std::string(password.length(), '*').c_str());
 			std::string encryptedPassword = encryptPassword(password);
@@ -129,18 +130,17 @@ void ServerA::receiveUDPMessage()
 			}
 			//do nothing with invalid command.
 		}
+		if(authenticationResult)
+		{
+			printf("Member %s has been authenticated.\n", username.c_str());
+		}
+		else
+		{
+			printf("The username %s or password %s is incorrect\n", username.c_str(), std::string(password.length(), '*').c_str());
+		}
+		std::string response = authenticationResult ? "login OK" : "login NOK";
+		sendUDPMessage(response, clientAddr);
 	}
-
-	if(authenticationResult)
-	{
-		printf("Member %s has been authenticated.\n", username.c_str());
-	}
-	else
-	{
-		printf("The username %s or password %s is incorrect\n", username.c_str(), std::string(password.length(), '*').c_str());
-	}
-	std::string response = authenticationResult ? "./client OK" : "./client NOK";
-	sendUDPMessage(response, clientAddr);
 }
 
 bool ServerA::setupUDPServer()
