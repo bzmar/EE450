@@ -148,7 +148,6 @@ bool Client::getAuthentication()
 		std::istringstream iss(response);
 		std::string key, result;
 		iss >> key >> result;
-		std::cout << key << ", " << result << std::endl;
 		if(key.compare("login") != 0)
 		{
 			printf("The response does not contain the command sent");
@@ -190,8 +189,12 @@ bool Client::getUserCommand(std::string& command)
 			{
 				if(parameter.empty())
 				{
-					command += std::string(" ") + username;
-					printf("Username is not specified. Will lookup %s", username.c_str());
+					command = action + std::string(" ") + username;
+					printf("Username is not specified. Will lookup %s\n", username.c_str());
+				}
+				else
+				{
+					command = action + std::string(" ") + parameter;
 				}
 				validCommand = true;
 			}
@@ -200,11 +203,11 @@ bool Client::getUserCommand(std::string& command)
 				if(parameter.empty())
 				{
 					validCommand = false;
-					printf("Error: Filename is required. Please specify a filename to push.");
+					printf("Error: Filename is required. Please specify a filename to push.\n");
 				}
 				else
 				{
-					command = action + std::string(" ") + parameter;
+					command = action + std::string(" ") + username + std::string(" ") + parameter;
 					validCommand = true;
 				}
 			}
@@ -213,11 +216,11 @@ bool Client::getUserCommand(std::string& command)
 				if(parameter.empty())
 				{
 					validCommand = false;
-					printf("Error: Filename is required. Please specify a filename to remove.");
+					printf("Error: Filename is required. Please specify a filename to remove.\n");
 				}
 				else
 				{
-					command = action + std::string(" ") + parameter;
+					command = action + std::string(" ") + username + std::string(" ") + parameter;
 					validCommand = true;
 				}
 			}
@@ -225,7 +228,6 @@ bool Client::getUserCommand(std::string& command)
 			{
 				command = action;
 			}
-			validCommand = !parameter.empty();
 		}
 	}
 	else
@@ -257,23 +259,23 @@ void Client::handleUserCommand(const std::string& command)
 
 	if(action.compare("lookup") == 0)
 	{
-		printf("%s sent a lookup request for %s to the main server", username.c_str(), parameter.c_str());
+		printf("%s sent a lookup request for %s to the main server\n", username.c_str(), parameter.c_str());
 	}
 	else if(action.compare("push") == 0)
 	{
-		printf("%s sent a push request to the main server for file: %s", username.c_str(), parameter.c_str());
+		printf("%s sent a push request to the main server for file: %s\n", username.c_str(), parameter.c_str());
 	}
 	else if(action.compare("remove") == 0)
 	{
-		printf("%s sent a remove request to the main server for file %s", username.c_str(), parameter.c_str());
+		printf("%s sent a remove request to the main server for file %s\n", username.c_str(), parameter.c_str());
 	}
 	else if(action.compare("deploy") == 0)
 	{
-		printf("%s sent a deploy request to the main server", username.c_str());
+		printf("%s sent a deploy request to the main server\n", username.c_str());
 	}
 	else if(action.compare("log") == 0)
 	{
-		printf("%s sent a log request to the main server", username.c_str());
+		printf("%s sent a log request to the main server\n", username.c_str());
 	}
 	sendMessage(command);
 }
@@ -287,7 +289,7 @@ bool Client::handleServerResponse(const std::string& response)
 	if(action.compare("lookup") == 0)
 	{
 		std::string result, un;
-		iss >> result >> un;
+		iss >> un >> result;
 		if(result.compare("UNF") == 0)
 		{
 			printf("%s does not exist. Please try again.\n", un.c_str());
@@ -314,43 +316,40 @@ bool Client::handleServerResponse(const std::string& response)
 	}
 	else if(action.compare("push") == 0)
 	{
-		std::string result;
-		iss >> result;
-		if(result.compare("overwrite") == 0)
+		std::string username, filename, result;
+		iss >> username >> filename >> result;
+		if(result.compare("CO") == 0)
 		{
-			std::string filename, response;
-			iss >> filename;
+			std::string userResponse, message;
 			printf("%s exists in %s's repository, do you want to overwrite (Y/N)?", filename.c_str(), username.c_str());
-			std::getline(std::cin, response);
-			if(response.compare("Y") == 0)
+			std::getline(std::cin, userResponse);
+			std::transform( userResponse.begin(), userResponse.end(), userResponse.begin(),
+				[] (unsigned char c){ return std::tolower(c); } );
+			if( (userResponse.compare("y") == 0) || (userResponse.compare("yes") == 0) )
 			{
-				response = std::string("push overwrite yes");
+				message = std::string("push ") + username + std::string(" ") + filename + std::string(" OC");
 			}
-			else if(response.compare("N") == 0)
+			else if( (userResponse.compare("n") == 0) || (userResponse.compare("no") == 0) )
 			{
-				response = std::string("push overwrite no");
+				message = std::string("push ") + username + std::string(" ") + filename + std::string(" NOC");
 			}
-			sendMessage(response);
+			sendMessage(message);
 			return false;
 		}
 		else if(result.compare("OK") == 0)
 		{
-			std::string filename;
-			iss >> filename;
 			printf("%s pushed successfully.", filename.c_str());
 		}
 		else
 		{
-			std::string filename;
-			iss >> filename;
 			printf("%s was not pushed successfully.", filename.c_str());
 		}
 		
 	}
 	else if(action.compare("remove") == 0)
 	{
-		std::string result;
-		iss >> result;
+		std::string username, filename, result;
+		iss >> username >> filename >> result;
 		if(result.compare("OK") == 0)
 		{
 			printf("The remove request was successful.");
@@ -403,7 +402,7 @@ int main(int argc, char const *argv[])
 
 	printf("The client is up and running.\n");
 
-	bool result = c->getAuthentication();
+	bool result = false;
 	do
 	{
 		result = c->getAuthentication();
@@ -418,33 +417,32 @@ int main(int argc, char const *argv[])
 	{
 		std::string command;
 		bool validCommand = c->getUserCommand(command);
-		do
+		while(!validCommand)
 		{
 			command.clear();
 			printf("The command was entered incorrectly. Please try again.\n");
 			validCommand = c->getUserCommand(command);
 		}
-		while(!validCommand);
 
 		c->handleUserCommand(command);
 
 		std::string response;
-		bool messageReceived = c->receiveMessage(response);
+		bool messageReceived = false;
 		do
 		{
 			messageReceived = c->receiveMessage(response);
 		} while (!messageReceived);
 
 		bool completedTransaction = c->handleServerResponse(response);
-
-		do
+		while(!completedTransaction)
 		{
+			messageReceived = false;
 			do
 			{
 				messageReceived = c->receiveMessage(response);
 			} while (!messageReceived);
 			completedTransaction = c->handleServerResponse(response);
-		} while(!completedTransaction);
+		}
 	}
 
 	return 0;

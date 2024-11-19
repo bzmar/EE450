@@ -45,7 +45,7 @@ void ServerR::generateRepository()
 	file.close();
 }
 
-void ServerR::addToRepository(const std::string& username, const std::string& filename)
+bool ServerR::addToRepository(const std::string& username, const std::string& filename)
 {
 	std::string entry = username + " " + filename;
 	std::ofstream file(FILENAMES_FILE, std::ios::app);
@@ -60,12 +60,13 @@ void ServerR::addToRepository(const std::string& username, const std::string& fi
 		{
 			printf("[PANIC] Error in opening file %s", FILENAMES_FILE.c_str());
 		}
-		return;
+		return false;
 	}
 	membersRepository[username].insert(filename);
+	return true;
 }
 
-void ServerR::removeFromRepository(const std::string& username, const std::string& filename)
+bool ServerR::removeFromRepository(const std::string& username, const std::string& filename)
 {
 	std::string target = username + " " + filename;
 	std::ifstream file(FILENAMES_FILE);
@@ -75,7 +76,7 @@ void ServerR::removeFromRepository(const std::string& username, const std::strin
 		{
 			printf("[PANIC] Error in opening file %s", FILENAMES_FILE.c_str());
 		}
-		return;
+		return false;
 	}
 
 	std::ofstream tmpFile("tmp.txt");
@@ -86,7 +87,7 @@ void ServerR::removeFromRepository(const std::string& username, const std::strin
 			printf("[PANIC] Error in opening file %s", FILENAMES_FILE.c_str());
 		}
 		file.close();
-		return;
+		return false;
 	}
 
 	std::string line;
@@ -109,19 +110,29 @@ void ServerR::removeFromRepository(const std::string& username, const std::strin
 
 	if(found)
 	{
-		if(std::remove(filename.c_str()) != 0)
+		while(file.is_open())
+		{
+			std::cout << "Waiting to close file" << std::endl;
+		}
+		while(tmpFile.is_open())
+		{
+			std::cout << "Waiting to close file" << std::endl;
+		}
+		if(std::remove(FILENAMES_FILE.c_str()) != 0)
 		{
 			if(DEBUG)
 			{
-				printf("[PANIC] Could not delete the original file.\n");
+				printf("[PANIC] Could not delete the original file. (%s)\n", std::strerror(errno));
 			}
+			return false;
 		}
 		else if (std::rename("tmp.txt", FILENAMES_FILE.c_str()) != 0)
 		{
 			if(DEBUG)
 			{
-				printf("[PANIC] Could not replace the original file.\n");
+				printf("[PANIC] Could not replace the original file. (%s)\n", std::strerror(errno));
 			}
+			return false;
 		}
 		else
 		{
@@ -132,23 +143,32 @@ void ServerR::removeFromRepository(const std::string& username, const std::strin
 			}
 		}
 	}
+	return true;
 }
 
 void ServerR::lookup(const std::string& username, const sockaddr_in& clientAddr)
 {
-	std::string response = std::string("results") + std::string(" ") + username; 
-	const auto& filenames = membersRepository[username];
-	for (const auto& filename : filenames)
+	std::string response = std::string("lookup ") + username;
+	const auto& search = membersRepository.find(username);
+	if (search == membersRepository.end())
 	{
-		response += std::string(" ") + filename;
+		response += std::string(" UNF");
 	}
-	
+	else
+	{
+		response += std::string(" UF");
+		const auto& filenames = membersRepository[username];
+		for (const auto& filename : filenames)
+		{
+			response += std::string(" ") + filename;
+		}
+	}
 	sendUDPMessage(response, clientAddr);
 }
 
 void ServerR::deploy(const std::string& username, const sockaddr_in& clientAddr)
 {
-	std::string response = std::string("queue"); 
+	std::string response = std::string("deploy ") + username; 
 	const auto& filenames = membersRepository[username];
 	for (const auto& filename : filenames)
 	{
@@ -216,23 +236,59 @@ void ServerR::receiveUDPMessage()
 		}
 		else if(command.compare("push") == 0)
 		{
-			std::string username, filename;
-			iss >> username >> filename;
+			std::string username, filename, overwriteConfirmation;
+			iss >> username >> filename >> overwriteConfirmation;
 			printf("Server R has received a push request from the main server.\n");
+			std::string response;
 			if(!username.empty() && !filename.empty())
 			{
-				std::set<std::string> filenames = membersRepository[username];
-				auto searchResult = filenames.find(filename);
-				if(searchResult == filenames.end())
+				if(overwriteConfirmation.compare("OC") == 0)
 				{
-					addToRepository(username, filename);
-					printf("%s uploaded successfully.\n", filename.c_str());
+					bool removeSuccess = removeFromRepository(username, filename);
+					bool addSuccess = addToRepository(username, filename);
+					if(removeSuccess && addSuccess)
+					{
+						response = std::string("push ") + username + std::string(" ") + filename + std::string(" OK");
+					}
+					else
+					{
+						if(!removeSuccess)
+						{
+							std::cout << "remove failed" << std::endl;
+						}
+						if(!addSuccess)
+						{
+							std::cout << "add failed" << std::endl;
+						}
+						response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
+					}
+				}
+				else if(overwriteConfirmation.compare("ONC") == 0)
+				{
+					response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
 				}
 				else
 				{
-					std::string response = "confirm";
-					printf("%s exists in %s's repository; requesting overwrite confirmation.\n", filename.c_str(), username.c_str());
-					sendUDPMessage(response, clientAddr);
+					std::set<std::string> filenames = membersRepository[username];
+					auto searchResult = filenames.find(filename);
+					if(searchResult == filenames.end())
+					{
+						bool addSuccess = addToRepository(username, filename);
+						if(addSuccess)
+						{
+							response = std::string("push ") + username + std::string(" ") + filename + std::string(" OK");
+						}
+						else
+						{
+							response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
+						}
+						printf("%s uploaded successfully.\n", filename.c_str());
+					}
+					else
+					{
+						response = std::string("push ") + username + std::string(" ") + filename + std::string(" CO");
+						printf("%s exists in %s's repository; requesting overwrite confirmation.\n", filename.c_str(), username.c_str());
+					}
 				}
 			}
 			else
@@ -247,13 +303,15 @@ void ServerR::receiveUDPMessage()
 					{
 						printf("[DEBUG] No filename was provided for push.\n");
 					}
+					response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
 				}
 			}
+			sendUDPMessage(response, clientAddr);
 		}
 		else if(command.compare("remove") == 0)
 		{
 			printf("Server R has received a remove request from the main server.\n");
-			std::string username, filename;
+			std::string username, filename, response;
 			iss >> username >> filename;
 			if(!username.empty() && !filename.empty())
 			{
@@ -261,11 +319,20 @@ void ServerR::receiveUDPMessage()
 				auto searchResult = filenames.find(filename);
 				if(searchResult == filenames.end())
 				{
+					response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");
 					printf("%s does not exist in the repository.\n", filename.c_str());
 				}
 				else
 				{
-					removeFromRepository(username, filename);
+					bool removeSuccess = removeFromRepository(username, filename);
+					if(removeSuccess)
+					{
+						response = std::string("remove ") + username + std::string(" ") + filename + std::string(" OK");
+					}
+					else
+					{
+						response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");	
+					}
 					printf("Server R has received a remove request from the main server.\n");
 				}
 			}
@@ -273,6 +340,7 @@ void ServerR::receiveUDPMessage()
 			{
 				if(DEBUG)
 				{
+					response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");
 					if(username.empty())
 					{
 						printf("[DEBUG] No username was provided for push.\n");
@@ -283,6 +351,7 @@ void ServerR::receiveUDPMessage()
 					}
 				}
 			}
+			sendUDPMessage(response, clientAddr);
 		}
 		else if(command.compare("deploy") == 0)
 		{
@@ -291,22 +360,22 @@ void ServerR::receiveUDPMessage()
 			iss >> username;
 			deploy(username, clientAddr);
 		}
-		else if(command.compare("confirm") == 0)
-		{
-			std::string username, filename;
-			iss >> username >> filename;
+		// else if(command.compare("confirm") == 0)
+		// {
+		// 	std::string username, filename;
+		// 	iss >> username >> filename;
 
-			if(username.empty() || filename.empty())
-			{
-				printf("Overwrite denied.\n");
-			}
-			else
-			{
-				removeFromRepository(username,filename);
-				addToRepository(username,filename);
-				printf("User requested overwrite; overwrite successful.\n");
-			}
-		}
+		// 	if(username.empty() || filename.empty())
+		// 	{
+		// 		printf("Overwrite denied.\n");
+		// 	}
+		// 	else
+		// 	{
+		// 		removeFromRepository(username,filename);
+		// 		addToRepository(username,filename);
+		// 		printf("User requested overwrite; overwrite successful.\n");
+		// 	}
+		// }
 		else
 		{
 			//do nothing with invalid command
