@@ -41,7 +41,7 @@ bool ServerD::sendUDPMessage(const std::string& message, const sockaddr_in& clie
 	return true;
 }
 
-void ServerD::deploy(const std::string& username, const std::string& files)
+bool ServerD::deploy(const std::string& username, const std::string& files)
 {
 	std::ofstream file(DEPLOYED_FILE, std::ios::app);
 
@@ -51,7 +51,7 @@ void ServerD::deploy(const std::string& username, const std::string& files)
 		{
 			printf("[PANIC] Error in opening file %s", DEPLOYED_FILE.c_str());
 		}
-		return;
+		return false;
 	}
 
 	std::istringstream iss(files);
@@ -65,6 +65,7 @@ void ServerD::deploy(const std::string& username, const std::string& files)
 	file.close();
 
 	printf("Server D has deployed the user %s's repository.\n", username.c_str());
+	return true;
 }
 
 void ServerD::receiveUDPMessage()
@@ -73,6 +74,7 @@ void ServerD::receiveUDPMessage()
 	sockaddr_in clientAddr;
 	socklen_t clientAddrLen = sizeof(clientAddr);
 	ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
+	std::string response;
 	if(bytesReceived > 0)
 	{
 		buffer[bytesReceived] = '\0';
@@ -88,20 +90,34 @@ void ServerD::receiveUDPMessage()
 		{
 			std::string files;
 			std::getline(iss >> std::ws, files);
-			deploy(username, files);
+			bool deploySuccess = deploy(username, files);
+			
+			if(deploySuccess)
+			{
+				response = std::string("deploy ") + username + std::string(" OK");
+				std::istringstream iss(files);
+				std::string filename;
+				while(iss >> filename)
+				{
+					response += std::string(" ") + filename;
+				}
+			}
+			else
+			{
+				response = std::string("deploy ") + username + std::string(" NOK");
+			}
 		}
 		else
 		{
 			if(DEBUG)
 			{
 				printf("[DEBUG] Received Invalid Command.\n");
+				response = std::string("deploy ") + username + std::string(" NOK");
 			}
 			//do nothing with invalid command.
 		}
 	}
 
-	
-	std::string response = "deploy OK";
 	sendUDPMessage(response, clientAddr);
 }
 

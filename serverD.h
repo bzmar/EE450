@@ -28,7 +28,7 @@ public:
 	void receiveUDPMessage();
 
 private:
-	void deploy(const std::string&, const std::string&);
+	bool deploy(const std::string&, const std::string&);
 	bool setupUDPServer();
 
 	int UDPSocket;

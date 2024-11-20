@@ -178,6 +178,8 @@ bool Client::getUserCommand(std::string& command)
 	std::istringstream iss(command);
 	std::string action, parameter;
 	iss >> action >> parameter;
+	std::transform( action.begin(), action.end(), action.begin(),
+				[] (unsigned char c){ return std::tolower(c); } );
 
 	bool validCommand = false;
 	if(isMember)
@@ -224,9 +226,10 @@ bool Client::getUserCommand(std::string& command)
 					validCommand = true;
 				}
 			}
-			else //deploy or log
+			else if(action.compare("deploy") == 0)
 			{
-				command = action;
+				command = action + std::string(" ") + username;
+				validCommand = true;
 			}
 		}
 	}
@@ -361,11 +364,12 @@ bool Client::handleServerResponse(const std::string& response)
 	}
 	else if(action.compare("deploy") == 0)
 	{
-		std::string result, file;
-		iss >> result;
+		std::string result, username;
+		iss >> username >> result;
 		if(result.compare("OK") == 0)
 		{
 			printf("The following files in %s repository have been deployed:\n", username.c_str());
+			std::string file;
 			while (iss >> file)
 			{
 				printf("%s\n", file.c_str());

@@ -263,9 +263,10 @@ void ServerR::receiveUDPMessage()
 						response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
 					}
 				}
-				else if(overwriteConfirmation.compare("ONC") == 0)
+				else if(overwriteConfirmation.compare("NOC") == 0)
 				{
 					response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
+					printf("%s declined overwrite.\n", username.c_str());
 				}
 				else
 				{
