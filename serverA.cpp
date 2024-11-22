@@ -5,18 +5,14 @@ ServerA::ServerA()
 	, members()
 {
 	generateMembers();
-	if(!setupUDPServer())
+	bool serverReady = false;
+	printf("Booting Server A ..");
+	do
 	{
-		if(DEBUG)
-		{
-			printf("[DEBUG]Failed to create UDP server.\n");
-		}
-		return;
+		printf(".");
+		serverReady = setupUDPServer();
 	}
-	else
-	{
-		printf("Server A is up and running using UDP on port %d.\n", UDP_PORT);
-	}
+	while(!serverReady);
 }
 
 ServerA::~ServerA()
@@ -24,24 +20,21 @@ ServerA::~ServerA()
 	if(UDPSocket != -1) close(UDPSocket);
 }
 
-void ServerA::generateMembers()
-{
-	std::ifstream file(MEMBER_FILE);
 
+void ServerA::generateMembers(const std::string filename)
+{
+	std::ifstream file(filename);
 	if(!file.is_open())
 	{
 		if(DEBUG)
 		{
-			printf("[PANIC] Error in opening file %s", MEMBER_FILE.c_str());
+			printf("[PANIC] Error in opening file %s.", MEMBER_FILE.c_str());
 		}
 	}
-
 	std::string username, password;
-
 	while(file >> username >> password) {
 		members[username] = password;
 	}
-
 	file.close();
 }
 
@@ -172,17 +165,17 @@ bool ServerA::setupUDPServer()
 		return false;
 	}
 
-	printf("UDP Server is listening on port %d.\n", UDP_PORT);
+	printf("\nServer A is up and running using UDP on port %d.\n", UDP_PORT);
 	return true;
 }
 
 int main(/*int argc, char const *argv[]*/)
 {
-	ServerA server;
+	ServerA a;
 
 	while(1)
 	{
-		server.receiveUDPMessage();
+		a.receiveUDPMessage();
 	}
 
 	return 0;

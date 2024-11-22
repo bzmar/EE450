@@ -47,7 +47,7 @@ $(SERVERR_EXE): $(SERVERR_OBJ)
 client.o: client.cpp client.h
 	$(CXX) $(CXXFLAGS) -c $<
 
-serverM.o: serverM.cpp serverM.h
+serverM.o: serverM.cpp serverM.h common.h
 	$(CXX) $(CXXFLAGS) -c $<
 
 serverA.o: serverA.cpp serverA.h

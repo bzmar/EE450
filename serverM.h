@@ -1,15 +1,8 @@
 #pragma once
 
-#include <iostream>
-#include <sstream>
-#include <thread>
-#include <cstring>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
 #include <vector>
 #include <mutex>
+#include "common.h"
 
 const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;
 const int TCP_PORT = 25000 + MY_ID_NUMBER_LAST_THREE_DIGITS;

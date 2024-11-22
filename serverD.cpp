@@ -3,18 +3,13 @@
 ServerD::ServerD()
 	: UDPSocket(-1)
 {
-	if(!setupUDPServer())
+	bool serverReady = false;
+	printf("Booting Server D ..");
+	do
 	{
-		if(DEBUG)
-		{
-			printf("[DEBUG]Failed to create UDP server.\n");
-		}
-		return;
-	}
-	else
-	{
-		printf("Server D is up and running using UDP on port %d.\n", UDP_PORT);
-	}
+		printf(".");
+		serverReady = setupUDPServer();
+	}while(!serverReady);
 }
 
 ServerD::~ServerD()
@@ -88,6 +83,7 @@ void ServerD::receiveUDPMessage()
 
 		if(command.compare("deploy") == 0)
 		{
+			printf("Server D has received a deploy request from the main server.\n");
 			std::string files;
 			std::getline(iss >> std::ws, files);
 			bool deploySuccess = deploy(username, files);
@@ -150,7 +146,7 @@ bool ServerD::setupUDPServer()
 		return false;
 	}
 
-	//printf("UDP Server is listening on port %d.\n", UDP_PORT);
+	printf("\nServer D is up and running using UDP on port %d.\n", UDP_PORT);
 	return true;
 }
 

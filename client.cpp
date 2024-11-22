@@ -159,6 +159,8 @@ bool Client::getAuthentication()
 			return true;
 		}
 	}
+	username.clear();
+	password.clear();
 	return false;
 }
 
@@ -191,12 +193,12 @@ bool Client::getUserCommand(std::string& command)
 			{
 				if(parameter.empty())
 				{
-					command = action + std::string(" ") + username;
+					command = action + std::string(" ") + username + std::string(" ") + username;
 					printf("Username is not specified. Will lookup %s\n", username.c_str());
 				}
 				else
 				{
-					command = action + std::string(" ") + parameter;
+					command = action + std::string(" ") + parameter + std::string(" ") + username;
 				}
 				validCommand = true;
 			}
@@ -245,7 +247,7 @@ bool Client::getUserCommand(std::string& command)
 			}
 			else
 			{
-				command = action + std::string(" ") + parameter;
+				command = action + std::string(" ") + parameter + std::string(" guest");
 				validCommand = true;
 			}
 		}
@@ -413,6 +415,7 @@ int main(int argc, char const *argv[])
 		if(!result)
 		{
 			printf("The credentials are incorrect. Please try again.\n");
+			c->getLogin();
 		}
 		
 	} while(!result);

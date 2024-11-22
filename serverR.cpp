@@ -5,18 +5,14 @@ ServerR::ServerR()
 	, membersRepository()
 {
 	generateRepository();
-	if(!setupUDPServer())
+	bool serverReady = false;
+	printf("Booting Server R ..");
+	do
 	{
-		if(DEBUG)
-		{
-			printf("[DEBUG]Failed to create UDP server.\n");
-		}
-		return;
+		printf(".");
+		serverReady = setupUDPServer();
 	}
-	else
-	{
-		printf("Server R is up and running using UDP on port %d.\n", UDP_PORT);
-	}
+	while(!serverReady);
 }
 
 ServerR::~ServerR()
@@ -248,17 +244,18 @@ void ServerR::receiveUDPMessage()
 					bool addSuccess = addToRepository(username, filename);
 					if(removeSuccess && addSuccess)
 					{
+						printf("%s requested overwrite; overwrite successful.\n", username.c_str());
 						response = std::string("push ") + username + std::string(" ") + filename + std::string(" OK");
 					}
 					else
 					{
 						if(!removeSuccess)
 						{
-							std::cout << "remove failed" << std::endl;
+							printf("%s requested overwrite; overwrite unsuccessful, could not remove existing file.\n", username.c_str());
 						}
-						if(!addSuccess)
+						else if(!addSuccess)
 						{
-							std::cout << "add failed" << std::endl;
+							printf("%s requested overwrite; overwrite unsuccessful, could not add file.\n", username.c_str());
 						}
 						response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
 					}
@@ -283,7 +280,7 @@ void ServerR::receiveUDPMessage()
 						{
 							response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
 						}
-						printf("%s uploaded successfully.\n", filename.c_str());
+						printf("%s uploaded successfully to %s's repository.\n", filename.c_str(), username.c_str());
 					}
 					else
 					{
@@ -321,7 +318,7 @@ void ServerR::receiveUDPMessage()
 				if(searchResult == filenames.end())
 				{
 					response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");
-					printf("%s does not exist in the repository.\n", filename.c_str());
+					printf("%s does not exist in %s repository.\n", filename.c_str(), username.c_str());
 				}
 				else
 				{
@@ -334,7 +331,7 @@ void ServerR::receiveUDPMessage()
 					{
 						response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");	
 					}
-					printf("Server R has received a remove request from the main server.\n");
+					printf("%s has been removed from %s's repository.\n", filename.c_str(), username.c_str());
 				}
 			}
 			else
@@ -417,7 +414,7 @@ bool ServerR::setupUDPServer()
 		return false;
 	}
 
-	printf("UDP Server is listening on port %d.\n", UDP_PORT);
+	printf("\nServer R is up and running using UDP on port %d.\n", UDP_PORT);
 	return true;
 }
 

@@ -30,7 +30,7 @@ public:
 
 private:
 	std::string encryptPassword(const std::string&);
-	void generateMembers();
+	void generateMembers(const std::string filename = MEMBER_FILE);
 	bool setupUDPServer();
 
 	int UDPSocket;
