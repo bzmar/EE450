@@ -8,25 +8,20 @@ ServerM::ServerM()
 	, TCPClientSockets()
 	, clientMutex()
 {
-	bool UDPServerReady = false;
-	bool TCPServerReady = false;
-	printf("Booting Server M ..");
-	do
+	if(!setupTCPServer())
 	{
-		printf(".");
-		if(!UDPServerReady)
+		if(DEBUG)
 		{
-			UDPServerReady = setupUDPServer();
+			printf("[DEBUG] Failed to create TCP server.\n");
 		}
-		if(!TCPServerReady)
+	}
+	if(!setupUDPServer())
+	{
+		if(DEBUG)
 		{
-			TCPServerReady = setupTCPServer();
+			printf("[DEBUG] Failed to create UDP server.\n");
 		}
-		if(!UDPServerReady || !TCPServerReady)
-		{
-			std::this_thread::sleep_for(std::chrono::seconds(10));
-		}
-	}while(!UDPServerReady || !TCPServerReady);
+	}
 };
 
 ServerM::~ServerM()
@@ -63,7 +58,7 @@ bool ServerM::setupTCPServer()
 		return false;
 	}
 
-	int listenResult = listen(TCPServerSocket, 5);
+	int listenResult = listen(TCPServerSocket, 10);
 	if(listenResult < 0)
 	{
 		if(DEBUG)
@@ -74,7 +69,7 @@ bool ServerM::setupTCPServer()
 		return false;
 	}
 
-	printf("Server M is up and running using TCP on port %d.\n", TCP_PORT);
+	printf("TCP Server is listening on port %d.\n", TCP_PORT);
 	return true;
 }
 
@@ -107,7 +102,7 @@ bool ServerM::setupUDPServer()
 		return false;
 	}
 
-	printf("\nServer M is up and running using UDP on port %d.\n", UDP_PORT);
+	printf("UDP Server is listening on port %d.\n", UDP_PORT);
 	return true;
 }
 
@@ -167,147 +162,53 @@ void ServerM::processReceivedMessageFromClient(int clientSocket, const std::stri
 	sockaddr_in targetUDPAddr;
 	targetUDPAddr.sin_family = AF_INET;
 	targetUDPAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-	int clientSocketPort = getSockInfo(clientSocket);
-	int serverUDPPort = getSockInfo(UDPServerSocket);
 
 	if(action.compare("login") == 0)
 	{
-		std::string username, password;
-		iss >> username >> password;
-		printf("Server M has received username: %s and password: %s\n", username.c_str(), std::string(password.length(), '*').c_str());
 		targetUDPAddr.sin_port = htons(SERVERA_PORT);
-		bool messageSent = sendUDPMessage(message, targetUDPAddr);
-		if(messageSent)
-		{
-			printf("Server M has sent authentication request to Server A.\n");
-		}
-		// else
-		// {
-		// 	std::cout << "message not sent" << std::endl;
-		// }
+		sendUDPMessage(message, targetUDPAddr);
 		std::string responseServerA;
 		bool responseServerAReceived = getResponseFromServer(responseServerA);
-		if(responseServerAReceived)
-		{
-			printf("The main server has received the response from server A using UDP over port %d.\n", serverUDPPort);
-		}
 		sendTCPMessage(clientSocket, responseServerA);
-		printf("The main server has sent the response from server A to client using TCP over port %d.\n", clientSocketPort);
 	}
 	else if(action.compare("lookup") == 0)
 	{
 		targetUDPAddr.sin_port = htons(SERVERR_PORT);
-		std::string targetUser, user;
-		iss >> targetUser >> user;
-		printf("The main server has received a lookup request from %s to lookup %s's repository using TCP over port %d.\n", user.c_str(), targetUser.c_str(), clientSocketPort);
 		sendUDPMessage(message, targetUDPAddr);
-		printf("The main server has sent the lookup request to server R.\n");
 		std::string responseServerR;
 		bool responseServerRReceived = getResponseFromServer(responseServerR);
-		if(responseServerRReceived)
-		{
-			printf("The main server has received the response from server R using UDP over port %d.\n", serverUDPPort);
-		}
 		sendTCPMessage(clientSocket, responseServerR);
-		printf("The main server has sent the lookup response to the client.\n");
 	}
 	else if(action.compare("push") == 0)
 	{
-		std::string username, filename, OWC;
-		iss >> username >> filename >> OWC;
-		std::cout << username << ", " << filename << ", " << OWC << std::endl;
-		if( (OWC.compare("NOC") == 0) || (OWC.compare("OC") == 0) )
-		{
-			printf("The main server has received the overwrite confirmation from %s using TCP over port %d.\n", username.c_str(), clientSocketPort);
-		}
-		else if(OWC.empty())
-		{
-			printf("The main server has received a push request from %s, using TCP over port %d.\n", username.c_str(), clientSocketPort);
-		}
 		targetUDPAddr.sin_port = htons(SERVERR_PORT);
 		sendUDPMessage(message, targetUDPAddr);
-		if( (OWC.compare("NOC") == 0) || (OWC.compare("OC") == 0) )
-		{
-			printf("The main server has sent the overwrite confirmation response to server R.\n");
-		}
-		else if(OWC.empty())
-		{
-			printf("The main server has sent the push request to server R.\n");
-		}
 		std::string responseServerR;
 		bool responseServerRReceived = getResponseFromServer(responseServerR);
-		if(responseServerRReceived)
-		{
-			if(OWC.compare("CO") == 0)
-			{
-				printf("The main server has received the response from server R using UDP over port %d, asking for overwrite confirmation.\n", serverUDPPort);	
-			}
-			else
-			{
-				printf("The main server has received the response from server R using UDP over port %d.\n", serverUDPPort);
-			}
-		}
 		sendTCPMessage(clientSocket, responseServerR);
-		if(OWC.compare("CO") == 0)
-		{
-			printf("The main server has sent the overwrite confirmation request to the client.\n");	
-		}
-		else
-		{
-			printf("The main server has sent the push response to the client.\n");	
-		}
 	}
 	else if(action.compare("remove") == 0)
 	{
-		std::string username;
-		iss >> username;
-		printf("The main server has received a remove request from member %s over TCP port %d\n", username.c_str(), clientSocketPort);
 		targetUDPAddr.sin_port = htons(SERVERR_PORT);
 		sendUDPMessage(message, targetUDPAddr);
-		printf("The main server has sent the remove request to server R.\n");
 		std::string responseServerR;
 		bool responseServerRReceived = getResponseFromServer(responseServerR);
-		if(responseServerRReceived)
-		{
-			printf("The main server has received confirmation of the remove request done by server R.\n");
-		}
 		sendTCPMessage(clientSocket, responseServerR);
-		printf("The main server has sent the remove response to the client.\n");
 	}
 	else if(action.compare("deploy") == 0)
 	{
-		std::string username;
-		iss >> username;
-		printf("The main server has received a deploy request from member %s over TCP port %d.\n", username.c_str(), clientSocketPort);
+		
 		targetUDPAddr.sin_port = htons(SERVERR_PORT);
-		printf("The main server has sent the lookup request to server R.\n");
 		sendUDPMessage(message, targetUDPAddr);
 		std::string responseServerR;
 		bool responseServerRReceived = getResponseFromServer(responseServerR);
-		if(responseServerRReceived)
-		{
-			printf("The main server has received the lookup response from server R.\n");
-		}
 
 		targetUDPAddr.sin_port = htons(SERVERD_PORT);
 		sendUDPMessage(responseServerR, targetUDPAddr);
-		printf("The main server has sent the deploy request to server D.\n");
 		std::string responseServerD;
 		bool responseServerDReceived = getResponseFromServer(responseServerD);
-		if(responseServerDReceived)
-		{
-			printf("The main server has received the deploy response from server D.\n");
-		}
 
 		sendTCPMessage(clientSocket, responseServerD);
-		std::istringstream iss2(responseServerD.c_str());
-		std::string result;
-		iss2 >> action >> username >> result;
-		if(result.compare("OK") == 0)
-		{
-			printf("The user %s's repository has been deployed at Server D.\n", username.c_str());
-		}
-		printf("The main server has sent the deploy response to the client.\n");
 	}
 }
 
@@ -357,14 +258,14 @@ std::string ServerM::receiveTCPMessage(int clientSocket)
 
 bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& serveraddr)
 {
-	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_DONTWAIT, (sockaddr*)&serveraddr, sizeof(serveraddr));
+	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&serveraddr, sizeof(serveraddr));
 	if(bytesSent < 0)
 	{
 		printf("Failed to send UDP message.\n");
 		return false;
 	}
 
-	// printf("Sent UDP message: %s\n", message.c_str());
+	printf("Sent UDP message: %s\n", message.c_str());
 	return true;
 }
 
@@ -374,7 +275,7 @@ bool ServerM::receiveUDPMessage(std::string& response)
 	sockaddr_in clientAddr;
 	socklen_t clientAddrLen = sizeof(clientAddr);
 	ssize_t bytesReceived = recvfrom(UDPServerSocket, buffer, sizeof(buffer)-1, 
-		MSG_DONTWAIT, (sockaddr*)&clientAddr, &clientAddrLen);
+		MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
 	if(bytesReceived > 0)
 	{
 		buffer[bytesReceived] = '\0';
@@ -384,6 +285,8 @@ bool ServerM::receiveUDPMessage(std::string& response)
 		}
 
 		response = std::string(buffer);
+		// sendUDPMessage(response, clientAddr);
+		// processReceivedMessageFromClient(clientAddr, std::string(buffer));
 		return true;
 	}
 	else

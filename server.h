@@ -11,7 +11,7 @@ public:
 	virtual ~Server();
 
 	virtual bool receiveTCPMessage(const int socket, std::string& message);
-	virtual bool receiveUDPMessage(const sockaddr_in& srcAddr, std::string& message);
+	virtual bool receiveUDPMessage(sockaddr_in& srcAddr, std::string& message);
 	virtual bool sendTCPMessage(const int socket, const std::string& message);
 	virtual bool sendUDPMessage(const sockaddr_in& destAddr, const std::string& message);
 

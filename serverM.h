@@ -4,14 +4,12 @@
 #include <mutex>
 #include "common.h"
 
-const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;
 const int TCP_PORT = 25000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int UDP_PORT = 24000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int SERVERA_PORT = 21000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int SERVERR_PORT = 22000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int SERVERD_PORT = 23000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
-const int BUFFER_SIZE = 2048;
-const std::string LOCALHOST = "127.0.0.1";
+// const int BUFFER_SIZE = 2048;
 
 class ServerM
 {

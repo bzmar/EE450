@@ -43,7 +43,7 @@ $(SERVERA_EXE): $(SERVERA_OBJ) $(SERVER_OBJ)
 $(SERVERD_EXE): $(SERVERD_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-$(SERVERR_EXE): $(SERVERR_OBJ)
+$(SERVERR_EXE): $(SERVERR_OBJ) $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Rules to compile object files with explicit dependencies

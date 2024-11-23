@@ -1,23 +1,27 @@
 #include "serverR.h"
 
-ServerR::ServerR()
-	: UDPSocket(-1)
-	, membersRepository()
+ServerR::ServerR(int udpPortNumber)
+	: Server(udpPortNumber, "R")
 {
 	generateRepository();
-	bool serverReady = false;
-	printf("Booting Server R ..");
-	do
-	{
-		printf(".");
-		serverReady = setupUDPServer();
-	}
-	while(!serverReady);
+	
+	serverMAddress.sin_family = AF_INET;
+	serverMAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+	serverMAddress.sin_port = htons(SERVER_M_UDP_PORT);
 }
 
-ServerR::~ServerR()
+bool ServerR::receiveTCPMessage(const int socket, std::string& message)
 {
-	if(UDPSocket != -1) close(UDPSocket);
+	throw std::runtime_error("Server A does not support TCP functionality");
+
+	return false;
+}
+
+bool ServerR::sendTCPMessage(const int socket, const std::string& message)
+{
+	throw std::runtime_error("Server A does not support TCP functionality");
+
+	return false;
 }
 
 void ServerR::generateRepository()
@@ -28,7 +32,7 @@ void ServerR::generateRepository()
 	{
 		if(DEBUG)
 		{
-			printf("[PANIC] Error in opening file %s", FILENAMES_FILE.c_str());
+			printf("[ERR] Error in opening file %s", FILENAMES_FILE.c_str());
 		}
 	}
 
@@ -39,6 +43,205 @@ void ServerR::generateRepository()
 	}
 
 	file.close();
+}
+
+void ServerR::parseAndExecuteCommand(const std::string& message)
+{
+	std::istringstream iss(message);
+	std::string command, username, password;
+	iss >> command;
+	
+	if(command.compare("lookup") == 0)
+	{
+		printf("Server R has received a lookup request from the main server.\n");
+		std::string username;
+		iss >> username;
+		if(!username.empty())
+		{
+			lookup(username);
+		}
+		else
+		{
+			if(DEBUG)
+			{
+				printf("[ERR] No username was provided for lookup.\n");
+			}
+		}
+	}
+	else if(command.compare("push") == 0)
+	{
+		printf("Server R has received a push request from the main server.\n");
+		std::string username, filename, overwrite;
+		iss >> username >> filename >> overwrite;
+		push(username, filename, overwrite);
+	}
+	else if(command.compare("remove") == 0)
+	{
+		printf("Server R has received a remove request from the main server.\n");
+		std::string username, filename, response;
+		iss >> username >> filename;
+		remove(username, filename);
+	}
+	else if(command.compare("deploy") == 0)
+	{
+		printf("Server R has received a deploy request from the main server.\n");
+		std::string username;
+		iss >> username;
+		deploy(username);
+	}
+}
+
+void ServerR::lookup(const std::string& username)
+{
+	std::string response = std::string("lookup ") + username;
+	const auto& search = membersRepository.find(username);
+	if (search == membersRepository.end())
+	{
+		response += std::string(" UNF");
+	}
+	else
+	{
+		response += std::string(" UF");
+		const auto& filenames = membersRepository[username];
+		for (const auto& filename : filenames)
+		{
+			response += std::string(" ") + filename;
+		}
+	}
+	sendUDPMessage(serverMAddress, response);
+	printf("Server R has finished sending the response to the main server.\n");
+}
+
+void ServerR::push(const std::string& username, const std::string& filename, const std::string& overwrite)
+{
+	printf("Server R has received a push request from the main server.\n");
+	std::string response;
+	if(!username.empty() && !filename.empty())
+	{
+		if(overwrite.compare("OC") == 0)
+		{
+			bool removeSuccess = removeFromRepository(username, filename);
+			bool addSuccess = addToRepository(username, filename);
+			if(removeSuccess && addSuccess)
+			{
+				printf("%s requested overwrite; overwrite successful.\n", username.c_str());
+				response = std::string("push ") + username + std::string(" ") + filename + std::string(" OK");
+			}
+			else
+			{
+				if(!removeSuccess)
+				{
+					printf("%s requested overwrite; overwrite unsuccessful, could not remove existing file.\n", username.c_str());
+				}
+				else if(!addSuccess)
+				{
+					printf("%s requested overwrite; overwrite unsuccessful, could not add file.\n", username.c_str());
+				}
+				response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
+			}
+		}
+		else if(overwrite.compare("NOC") == 0)
+		{
+			response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
+			printf("%s declined overwrite.\n", username.c_str());
+		}
+		else
+		{
+			std::set<std::string> filenames = membersRepository[username];
+			auto searchResult = filenames.find(filename);
+			if(searchResult == filenames.end())
+			{
+				bool addSuccess = addToRepository(username, filename);
+				if(addSuccess)
+				{
+					response = std::string("push ") + username + std::string(" ") + filename + std::string(" OK");
+				}
+				else
+				{
+					response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
+				}
+				printf("%s uploaded successfully to %s's repository.\n", filename.c_str(), username.c_str());
+			}
+			else
+			{
+				response = std::string("push ") + username + std::string(" ") + filename + std::string(" CO");
+				printf("%s exists in %s's repository; requesting overwrite confirmation.\n", filename.c_str(), username.c_str());
+			}
+		}
+	}
+	else
+	{
+		if(DEBUG)
+		{
+			if(username.empty())
+			{
+				printf("[ERR] No username was provided for push.\n");
+			}
+			if(filename.empty())
+			{
+				printf("[ERR] No filename was provided for push.\n");
+			}
+			response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
+		}
+	}
+	sendUDPMessage(serverMAddress, response);
+}
+
+void ServerR::remove(const std::string& username, const std::string& filename)
+{
+	std::string response;
+	if(!username.empty() && !filename.empty())
+	{
+		std::set<std::string> filenames = membersRepository[username];
+		auto searchResult = filenames.find(filename);
+		if(searchResult == filenames.end())
+		{
+			response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");
+			printf("%s does not exist in %s repository.\n", filename.c_str(), username.c_str());
+		}
+		else
+		{
+			bool removeSuccess = removeFromRepository(username, filename);
+			if(removeSuccess)
+			{
+				response = std::string("remove ") + username + std::string(" ") + filename + std::string(" OK");
+			}
+			else
+			{
+				response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");	
+			}
+			printf("%s has been removed from %s's repository.\n", filename.c_str(), username.c_str());
+		}
+	}
+	else
+	{
+		if(DEBUG)
+		{
+			response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");
+			if(username.empty())
+			{
+				printf("[ERR] No username was provided for push.\n");
+			}
+			if(filename.empty())
+			{
+				printf("[ERR] No filename was provided for push.\n");
+			}
+		}
+	}
+	sendUDPMessage(serverMAddress, response);
+}
+
+void ServerR::deploy(const std::string& username)
+{
+	std::string response = std::string("deploy ") + username; 
+	const auto& filenames = membersRepository[username];
+	for (const auto& filename : filenames)
+	{
+		response += std::string(" ") + filename;
+	}
+	
+	sendUDPMessage(serverMAddress, response);
+	printf("Server R has finished sending the response to the main server.\n");
 }
 
 bool ServerR::addToRepository(const std::string& username, const std::string& filename)
@@ -108,11 +311,17 @@ bool ServerR::removeFromRepository(const std::string& username, const std::strin
 	{
 		while(file.is_open())
 		{
-			std::cout << "Waiting to close file" << std::endl;
+			if(DEBUG)
+			{
+				printf("[DEBUG] Waiting to close original file.\n");
+			}
 		}
 		while(tmpFile.is_open())
 		{
-			std::cout << "Waiting to close file" << std::endl;
+			if(DEBUG)
+			{
+				printf("[DEBUG] Waiting to close temp file.\n");
+			}
 		}
 		if(std::remove(FILENAMES_FILE.c_str()) != 0)
 		{
@@ -142,289 +351,21 @@ bool ServerR::removeFromRepository(const std::string& username, const std::strin
 	return true;
 }
 
-void ServerR::lookup(const std::string& username, const sockaddr_in& clientAddr)
-{
-	std::string response = std::string("lookup ") + username;
-	const auto& search = membersRepository.find(username);
-	if (search == membersRepository.end())
-	{
-		response += std::string(" UNF");
-	}
-	else
-	{
-		response += std::string(" UF");
-		const auto& filenames = membersRepository[username];
-		for (const auto& filename : filenames)
-		{
-			response += std::string(" ") + filename;
-		}
-	}
-	sendUDPMessage(response, clientAddr);
-}
-
-void ServerR::deploy(const std::string& username, const sockaddr_in& clientAddr)
-{
-	std::string response = std::string("deploy ") + username; 
-	const auto& filenames = membersRepository[username];
-	for (const auto& filename : filenames)
-	{
-		response += std::string(" ") + filename;
-	}
-	
-	sendUDPMessage(response, clientAddr);
-	printf("Server R has finished sending the response to the main server.\n");
-}
-
-bool ServerR::sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr)
-{
-	ssize_t bytesSent = sendto(UDPSocket, message.c_str(), message.size(), MSG_CONFIRM, 
-		(sockaddr*)&clientAddr, sizeof(clientAddr));
-	if(bytesSent < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG]Failed to send UDP message.\n");
-		}
-		return false;
-	}
-	if(DEBUG)
-	{
-		printf("[DEBUG]Sent UDP message: %s\n", message.c_str());
-	}
-	return true;
-}
-
-void ServerR::receiveUDPMessage()
-{
-	char buffer[BUFFER_SIZE];
-	sockaddr_in clientAddr;
-	socklen_t clientAddrLen = sizeof(clientAddr);
-	ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
-	if(bytesReceived > 0)
-	{
-		buffer[bytesReceived] = '\0';
-		if(DEBUG)
-		{
-			printf("[DEBUG] Received from TCP Client: %s.\n", buffer);
-		}
-		std::istringstream iss(buffer);
-		std::string command;
-		iss >> command;
-
-		if(command.compare("lookup") == 0)
-		{
-			std::string username;
-			iss >> username;
-
-			printf("Server R has received a lookup request from the main server.\n");
-			if(!username.empty())
-			{
-				lookup(username, clientAddr);
-				printf("Server R has finished sending the response to the main server.\n");
-			}
-			else
-			{
-				if(DEBUG)
-				{
-					printf("[DEBUG] No username was provided for lookup.\n");
-				}
-			}
-		}
-		else if(command.compare("push") == 0)
-		{
-			std::string username, filename, overwriteConfirmation;
-			iss >> username >> filename >> overwriteConfirmation;
-			printf("Server R has received a push request from the main server.\n");
-			std::string response;
-			if(!username.empty() && !filename.empty())
-			{
-				if(overwriteConfirmation.compare("OC") == 0)
-				{
-					bool removeSuccess = removeFromRepository(username, filename);
-					bool addSuccess = addToRepository(username, filename);
-					if(removeSuccess && addSuccess)
-					{
-						printf("%s requested overwrite; overwrite successful.\n", username.c_str());
-						response = std::string("push ") + username + std::string(" ") + filename + std::string(" OK");
-					}
-					else
-					{
-						if(!removeSuccess)
-						{
-							printf("%s requested overwrite; overwrite unsuccessful, could not remove existing file.\n", username.c_str());
-						}
-						else if(!addSuccess)
-						{
-							printf("%s requested overwrite; overwrite unsuccessful, could not add file.\n", username.c_str());
-						}
-						response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
-					}
-				}
-				else if(overwriteConfirmation.compare("NOC") == 0)
-				{
-					response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
-					printf("%s declined overwrite.\n", username.c_str());
-				}
-				else
-				{
-					std::set<std::string> filenames = membersRepository[username];
-					auto searchResult = filenames.find(filename);
-					if(searchResult == filenames.end())
-					{
-						bool addSuccess = addToRepository(username, filename);
-						if(addSuccess)
-						{
-							response = std::string("push ") + username + std::string(" ") + filename + std::string(" OK");
-						}
-						else
-						{
-							response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
-						}
-						printf("%s uploaded successfully to %s's repository.\n", filename.c_str(), username.c_str());
-					}
-					else
-					{
-						response = std::string("push ") + username + std::string(" ") + filename + std::string(" CO");
-						printf("%s exists in %s's repository; requesting overwrite confirmation.\n", filename.c_str(), username.c_str());
-					}
-				}
-			}
-			else
-			{
-				if(DEBUG)
-				{
-					if(username.empty())
-					{
-						printf("[DEBUG] No username was provided for push.\n");
-					}
-					if(filename.empty())
-					{
-						printf("[DEBUG] No filename was provided for push.\n");
-					}
-					response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
-				}
-			}
-			sendUDPMessage(response, clientAddr);
-		}
-		else if(command.compare("remove") == 0)
-		{
-			printf("Server R has received a remove request from the main server.\n");
-			std::string username, filename, response;
-			iss >> username >> filename;
-			if(!username.empty() && !filename.empty())
-			{
-				std::set<std::string> filenames = membersRepository[username];
-				auto searchResult = filenames.find(filename);
-				if(searchResult == filenames.end())
-				{
-					response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");
-					printf("%s does not exist in %s repository.\n", filename.c_str(), username.c_str());
-				}
-				else
-				{
-					bool removeSuccess = removeFromRepository(username, filename);
-					if(removeSuccess)
-					{
-						response = std::string("remove ") + username + std::string(" ") + filename + std::string(" OK");
-					}
-					else
-					{
-						response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");	
-					}
-					printf("%s has been removed from %s's repository.\n", filename.c_str(), username.c_str());
-				}
-			}
-			else
-			{
-				if(DEBUG)
-				{
-					response = std::string("remove ") + username + std::string(" ") + filename + std::string(" NOK");
-					if(username.empty())
-					{
-						printf("[DEBUG] No username was provided for push.\n");
-					}
-					if(filename.empty())
-					{
-						printf("[DEBUG] No filename was provided for push.\n");
-					}
-				}
-			}
-			sendUDPMessage(response, clientAddr);
-		}
-		else if(command.compare("deploy") == 0)
-		{
-			printf("Server R has received a deploy request from the main server.\n");
-			std::string username;
-			iss >> username;
-			deploy(username, clientAddr);
-		}
-		// else if(command.compare("confirm") == 0)
-		// {
-		// 	std::string username, filename;
-		// 	iss >> username >> filename;
-
-		// 	if(username.empty() || filename.empty())
-		// 	{
-		// 		printf("Overwrite denied.\n");
-		// 	}
-		// 	else
-		// 	{
-		// 		removeFromRepository(username,filename);
-		// 		addToRepository(username,filename);
-		// 		printf("User requested overwrite; overwrite successful.\n");
-		// 	}
-		// }
-		else
-		{
-			//do nothing with invalid command
-			if(DEBUG)
-		 	{
-		 		printf("[DEBUG] Received Invalid Command.\n");
-		 	}
-		}
-	}
-}
-
-bool ServerR::setupUDPServer()
-{
-	UDPSocket = socket(AF_INET, SOCK_DGRAM, 0);
-	if (UDPSocket < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to create UDP Socket.\n");
-		}
-		return false;
-	}
-
-	sockaddr_in ServerRddr;
-	ServerRddr.sin_family = AF_INET;
-    ServerRddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-    ServerRddr.sin_port = htons(UDP_PORT);
-
-    int bindResult = bind(UDPSocket, (struct sockaddr*)&ServerRddr, sizeof(ServerRddr));
-	if(bindResult < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to bind TCP socket.\n");
-		}
-		close(UDPSocket);
-		UDPSocket = -1;
-		return false;
-	}
-
-	printf("\nServer R is up and running using UDP on port %d.\n", UDP_PORT);
-	return true;
-}
-
 int main(/*int argc, char const *argv[]*/)
 {
-	ServerR server;
+	ServerR serverR(SERVER_R_UDP_PORT);
 
 	while(1)
 	{
-		server.receiveUDPMessage();
+		std::string message;
+		sockaddr_in serverMAddress; 
+		
+		bool messageReceivedFromServerM = serverR.receiveUDPMessage(serverMAddress, message);
+
+		if(messageReceivedFromServerM)
+		{
+			serverR.parseAndExecuteCommand(message);
+		}
 	}
 
 	return 0;

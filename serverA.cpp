@@ -3,17 +3,17 @@
 ServerA::ServerA(int udpPortNumber)
 	: Server(udpPortNumber, "A")
 {
+	generateMembers();
+
 	serverRAddress.sin_family = AF_INET;
 	serverRAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
 	serverRAddress.sin_port = htons(SERVER_R_UDP_PORT);
 
-	generateMembers();
-
-	bool pingResult = pingServerM();
-	while(!pingResult)
-	{
-		pingResult = pingServerM();
-	}
+	// bool pingResult = pingServerM();
+	// while(!pingResult)
+	// {
+	// 	pingResult = pingServerM();
+	// }
 }
 
 bool ServerA::receiveTCPMessage(const int socket, std::string& message)
@@ -109,7 +109,7 @@ bool ServerA::authenticate(const std::string& username, const std::string& passw
 	std::string encryptedPassword = encryptPassword(password);
 	if(DEBUG)
 	{
-		printf("[DEBUG] Original Password:%s Encrypted Password: %s", password.c_str(), encryptedPassword.c_str());
+		printf("[DEBUG] Original Password:%s Encrypted Password: %s\n", password.c_str(), encryptedPassword.c_str());
 	}
 	auto searchResult = members.find(username);
 	if(searchResult != members.end())
@@ -128,31 +128,33 @@ int main(/*int argc, char const *argv[]*/)
 	while(1)
 	{
 		std::string message;
-		bool messageReceivedFromServerM = serverA.receiveUDPMessage(serverA.getServerRAddress(), message);
+		sockaddr_in serverRAddress; 
+		bool messageReceivedFromServerM = serverA.receiveUDPMessage(serverRAddress, message);
 
 		if(messageReceivedFromServerM)
 		{
 			std::istringstream iss(message);
 			std::string command, username, password;
+			iss >> command >> username >> password;
+
 			if(command.compare("login") == 0 && !username.empty() && !password.empty())
 			{
 				printf("ServerA received username %s and password %s \n", username.c_str(), std::string(password.length(), '*').c_str());
 
-			}
+				bool authenticationResult = serverA.authenticate(username, password);
 
-			bool authenticationResult = serverA.authenticate(username, password);
+				if(authenticationResult)
+				{
+					printf("Member %s has been authenticated.\n", username.c_str());
+				}
+				else
+				{
+					printf("The username %s or password %s is incorrect\n", username.c_str(), std::string(password.length(), '*').c_str());
+				}
 
-			if(authenticationResult)
-			{
-				printf("Member %s has been authenticated.\n", username.c_str());
+				std::string response = authenticationResult ? "login OK" : "login NOK";
+				serverA.sendUDPMessage(serverRAddress, response);
 			}
-			else
-			{
-				printf("The username %s or password %s is incorrect\n", username.c_str(), std::string(password.length(), '*').c_str());
-			}
-
-			std::string response = authenticationResult ? "login OK" : "login NOK";
-			serverA.sendUDPMessage(serverA.getServerRAddress(), response);
 		}
 	}
 

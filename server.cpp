@@ -76,20 +76,20 @@ bool Server::receiveTCPMessage(const int clientSocket, std::string& message)
 		message = std::string(buffer);
 		if(DEBUG)
 		{
-			printf("[DEBUG] Received TCP message (port %d): %s", getSockPort(clientSocket), buffer);
+			printf("[DEBUG] Received TCP message (port %d): %s\n", getSockPort(clientSocket), buffer);
 		}
 	}
 	else
 	{
 		if(DEBUG)
 		{
-			printf("[WARN] No data was received from TCP Socket.");
+			// printf("[WARN] No data was received from TCP Socket.");
 		}
 		return false;
 	}
 	return true;
 }
-bool Server::receiveUDPMessage(const sockaddr_in& srcAddr, std::string& message)
+bool Server::receiveUDPMessage(sockaddr_in& srcAddr, std::string& message)
 {
 	char buffer[BUFFER_SIZE];
 	socklen_t srcAddrLen = sizeof(srcAddr);
@@ -106,7 +106,10 @@ bool Server::receiveUDPMessage(const sockaddr_in& srcAddr, std::string& message)
 	}
 	else
 	{
-		printf("[WARN] No data was received from UDP Socket.");
+		if(DEBUG)
+		{
+			// printf("[WARN] No data was received from UDP Socket.");
+		}
 		return false;
 	}
 	return true;
@@ -239,7 +242,7 @@ bool Server::setupTCPSocket(const int tcpPortNumber, const std::string& name)
 		return false;
 	}
 
-	printf("\nServer %s is up and running using TCP on port %d.\n", name.c_str(), getSockPort(TCPServerSocket));
+	printf("Server %s is up and running using TCP on port %d.\n", name.c_str(), getSockPort(TCPServerSocket));
 	return true;
 }
 
@@ -252,7 +255,7 @@ int Server::getSockPort(int socket)
     {
     	if(DEBUG)
     	{
-    		printf("[PANIC] Error in getsockname(...): %s", std::strerror(errno));
+    		printf("[PANIC] Error in getsockname(...): %s\n", std::strerror(errno));
     	}
     	return -1;
     }

@@ -1,29 +1,19 @@
 #pragma once
 
 #include <iostream>
-#include <sstream>
 #include <thread>
 #include <cstring>
 #include <arpa/inet.h>
 #include <unistd.h>
 #include <sys/types.h>
 #include <sys/socket.h>
+#include <fstream>
+#include <sstream>
+#include <map>
+#include <iostream>
+#include <set>
 
-bool DEBUG = false;
-
-int getSockInfo(int socket)
-{
-	sockaddr_in addr;
-    socklen_t addrlen = sizeof(addr);
-    
-    if(getsockname(socket, (struct sockaddr*)&addr, &addrlen) == -1)
-    {
-    	if(DEBUG)
-    	{
-    		printf("[PANIC] Error in getsockname(...): %s", std::strerror(errno));
-    	}
-    	return -1;
-    }
-
-    return ntohs(addr.sin_port);
-}
+const bool DEBUG = true;
+const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;
+const std::string LOCALHOST = "127.0.0.1";
+const int BUFFER_SIZE = 2048;
