@@ -1,38 +1,28 @@
 #pragma once
 
-#include <iostream>
-#include <thread>
-#include <cstring>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <fstream>
-#include <sstream>
-#include <map>
-#include <iostream>
+#include "server.h"
 
-const bool DEBUG = true;
-const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;
-const int UDP_PORT = 21000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
-const int BUFFER_SIZE = 1024;
-const std::string LOCALHOST = "127.0.0.1";
+const int SERVER_A_UDP_PORT = 21000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
+const int SERVER_R_UDP_PORT = 24000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
+// const int BUFFER_SIZE = 1024;
+
 const std::string MEMBER_FILE = "members.txt";
 
-class ServerA
+class ServerA : public Server
 {
 public:
-	ServerA();
-	~ServerA();
+	ServerA(int udpPortNumber);
 
-	bool sendUDPMessage(const std::string&, const sockaddr_in&);
-	void receiveUDPMessage();
+	bool authenticate(const std::string& username, const std::string& password);
+	sockaddr_in getServerRAddress();
+	bool receiveTCPMessage(const int socket, std::string& message) override;
+	bool sendTCPMessage(const int socket, const std::string& message) override;
 
 private:
 	std::string encryptPassword(const std::string&);
 	void generateMembers(const std::string filename = MEMBER_FILE);
-	bool setupUDPServer();
+	bool pingServerM();
 
-	int UDPSocket;
 	std::map<std::string, std::string> members;
+	sockaddr_in serverRAddress;
 };
