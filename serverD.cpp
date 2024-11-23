@@ -1,43 +1,53 @@
 #include "serverD.h"
 
-ServerD::ServerD()
-	: UDPSocket(-1)
+ServerD::ServerD(int udpPortNumber)
+	: Server(udpPortNumber, "D")
 {
-	bool serverReady = false;
-	printf("Booting Server D ..");
-	do
-	{
-		printf(".");
-		serverReady = setupUDPServer();
-	}while(!serverReady);
+	serverMAddress.sin_family = AF_INET;
+	serverMAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+	serverMAddress.sin_port = htons(SERVER_M_UDP_PORT);
 }
 
-ServerD::~ServerD()
+bool ServerD::receiveTCPMessage(const int socket, std::string& message)
 {
-	if(UDPSocket != -1) close(UDPSocket);
+	throw std::runtime_error("Server A does not support TCP functionality");
+
+	return false;
 }
 
-bool ServerD::sendUDPMessage(const std::string& message, const sockaddr_in& clientAddr)
+bool ServerD::sendTCPMessage(const int socket, const std::string& message)
 {
-	ssize_t bytesSent = sendto(UDPSocket, message.c_str(), message.size(), MSG_CONFIRM, 
-		(sockaddr*)&clientAddr, sizeof(clientAddr));
-	if(bytesSent < 0)
+	throw std::runtime_error("Server A does not support TCP functionality");
+
+	return false;
+}
+
+void ServerD::handleReceivedMessage(const std::string& message)
+{
+	std::istringstream iss(message);
+	std::string command, username;
+ 	iss >> command >> username;
+	if(command.compare("deploy") == 0)
+ 	{
+ 		std::string files;
+		std::getline(iss >> std::ws, files);
+		bool deploySuccess = deploy(username, files);
+
+		respondToServer(deploySuccess, username, files);
+	}
+	else
 	{
 		if(DEBUG)
 		{
-			printf("[DEBUG]Failed to send UDP message.\n");
+			printf("[DEBUG] Received Invalid Command.\n");
 		}
-		return false;
-	}
-	if(DEBUG)
-	{
-		printf("[DEBUG]Sent UDP message: %s\n", message.c_str());
-	}
-	return true;
+		respondToServer(false, "INVALID", "");
+ 	}
 }
 
 bool ServerD::deploy(const std::string& username, const std::string& files)
 {
+	printf("Server D has received a deploy request from the main server.\n");
 	std::ofstream file(DEPLOYED_FILE, std::ios::app);
 
 	if(!file.is_open())
@@ -63,100 +73,44 @@ bool ServerD::deploy(const std::string& username, const std::string& files)
 	return true;
 }
 
-void ServerD::receiveUDPMessage()
+void ServerD::respondToServer(const bool deploymentStatus, const std::string& username, const std::string& files)
 {
-	char buffer[BUFFER_SIZE];
-	sockaddr_in clientAddr;
-	socklen_t clientAddrLen = sizeof(clientAddr);
-	ssize_t bytesReceived = recvfrom(UDPSocket, buffer, sizeof(buffer)-1, MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
 	std::string response;
-	if(bytesReceived > 0)
-	{
-		buffer[bytesReceived] = '\0';
-		if(DEBUG)
+	if(deploymentStatus)
+	{	
+		response = std::string("deploy ") + username + std::string(" OK");
+		std::istringstream iss(files);
+		std::string filename;
+		while(iss >> filename)
 		{
-			printf("[DEBUG] Received from TCP Client: %s.\n", buffer);
+			response += std::string(" ") + filename;
 		}
-		std::istringstream iss(buffer);
-		std::string command, username;
-		iss >> command >> username;
-
-		if(command.compare("deploy") == 0)
+		if(files.empty())
 		{
-			printf("Server D has received a deploy request from the main server.\n");
-			std::string files;
-			std::getline(iss >> std::ws, files);
-			bool deploySuccess = deploy(username, files);
-			
-			if(deploySuccess)
-			{
-				response = std::string("deploy ") + username + std::string(" OK");
-				std::istringstream iss(files);
-				std::string filename;
-				while(iss >> filename)
-				{
-					response += std::string(" ") + filename;
-				}
-			}
-			else
-			{
-				response = std::string("deploy ") + username + std::string(" NOK");
-			}
-		}
-		else
-		{
-			if(DEBUG)
-			{
-				printf("[DEBUG] Received Invalid Command.\n");
-				response = std::string("deploy ") + username + std::string(" NOK");
-			}
-			//do nothing with invalid command.
+			response += std::string(" NO_FILES_DEPLOYED");
 		}
 	}
-
-	sendUDPMessage(response, clientAddr);
-}
-
-bool ServerD::setupUDPServer()
-{
-	UDPSocket = socket(AF_INET, SOCK_DGRAM, 0);
-	if (UDPSocket < 0)
+	else
 	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to create UDP Socket.\n");
-		}
-		return false;
+		response = std::string("deploy ") + username + std::string(" NOK");
 	}
-
-	sockaddr_in ServerDddr;
-	ServerDddr.sin_family = AF_INET;
-    ServerDddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-    ServerDddr.sin_port = htons(UDP_PORT);
-
-    int bindResult = bind(UDPSocket, (struct sockaddr*)&ServerDddr, sizeof(ServerDddr));
-	if(bindResult < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to bind TCP socket.\n");
-		}
-		close(UDPSocket);
-		UDPSocket = -1;
-		return false;
-	}
-
-	printf("\nServer D is up and running using UDP on port %d.\n", UDP_PORT);
-	return true;
+	sendUDPMessage(serverMAddress, response);
 }
 
 int main(/*int argc, char const *argv[]*/)
 {
-	ServerD server;
+	ServerD serverD(SERVER_D_UDP_PORT);
 
 	while(1)
 	{
-		server.receiveUDPMessage();
+		std::string message;
+		sockaddr_in serverMAddress;
+		bool messageReceivedFromServerM = serverD.receiveUDPMessage(serverMAddress, message);
+
+		if(messageReceivedFromServerM)
+		{
+			serverD.handleReceivedMessage(message);
+		}
 	}
 
 	return 0;

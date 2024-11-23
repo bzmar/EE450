@@ -1,35 +1,23 @@
 #pragma once
 
-#include <iostream>
-#include <thread>
-#include <cstring>
-#include <arpa/inet.h>
-#include <unistd.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <fstream>
-#include <sstream>
-#include <iostream>
+#include "server.h"
 
-const bool DEBUG = false;
-const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;
-const int UDP_PORT = 23000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
-const int BUFFER_SIZE = 2048;
-const std::string LOCALHOST = "127.0.0.1";
+const int SERVER_D_UDP_PORT = 23000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
+const int SERVER_M_UDP_PORT = 24000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const std::string DEPLOYED_FILE = "deployed.txt";
 
-class ServerD
+class ServerD : public Server
 {
 public:
-	ServerD();
-	~ServerD();
-
-	bool sendUDPMessage(const std::string&, const sockaddr_in&);
-	void receiveUDPMessage();
+	ServerD(int udpPortNumber);
+	
+	void handleReceivedMessage(const std::string& message);
+	bool receiveTCPMessage(const int socket, std::string& message) override;
+	bool sendTCPMessage(const int socket, const std::string& message) override;
 
 private:
-	bool deploy(const std::string&, const std::string&);
-	bool setupUDPServer();
+	bool deploy(const std::string& username, const std::string& files);
+	void respondToServer(const bool deploymentStatus, const std::string& username, const std::string& files);
 
-	int UDPSocket;
+	sockaddr_in serverMAddress;
 };

@@ -5,9 +5,9 @@ ServerA::ServerA(int udpPortNumber)
 {
 	generateMembers();
 
-	serverRAddress.sin_family = AF_INET;
-	serverRAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-	serverRAddress.sin_port = htons(SERVER_R_UDP_PORT);
+	serverMAddress.sin_family = AF_INET;
+	serverMAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+	serverMAddress.sin_port = htons(SERVER_M_UDP_PORT);
 
 	// bool pingResult = pingServerM();
 	// while(!pingResult)
@@ -74,17 +74,17 @@ std::string ServerA::encryptPassword(const std::string& password)
 
 bool ServerA::pingServerM()
 {
-	bool pingStatus = sendUDPMessage(serverRAddress, "PING A M");
+	bool pingStatus = sendUDPMessage(serverMAddress, "PING A M");
 	while(!pingStatus)
 	{
-		pingStatus = sendUDPMessage(serverRAddress, "PING A M");
+		pingStatus = sendUDPMessage(serverMAddress, "PING A M");
 	}
 
 	std::string response;
-	bool pingResponse = receiveUDPMessage(serverRAddress, response);
+	bool pingResponse = receiveUDPMessage(serverMAddress, response);
 	while(!pingResponse)
 	{
-		pingResponse = receiveUDPMessage(serverRAddress, response);
+		pingResponse = receiveUDPMessage(serverMAddress, response);
 	}
 
 	if(response.compare("PING M A") != 0)
@@ -98,9 +98,9 @@ bool ServerA::pingServerM()
 	return true;
 }
 
-sockaddr_in ServerA::getServerRAddress()
+sockaddr_in ServerA::getServerMAddress()
 {
-	return serverRAddress;
+	return serverMAddress;
 }
 
 bool ServerA::authenticate(const std::string& username, const std::string& password)
@@ -128,8 +128,8 @@ int main(/*int argc, char const *argv[]*/)
 	while(1)
 	{
 		std::string message;
-		sockaddr_in serverRAddress; 
-		bool messageReceivedFromServerM = serverA.receiveUDPMessage(serverRAddress, message);
+		sockaddr_in serverMAddress; 
+		bool messageReceivedFromServerM = serverA.receiveUDPMessage(serverMAddress, message);
 
 		if(messageReceivedFromServerM)
 		{
@@ -153,7 +153,7 @@ int main(/*int argc, char const *argv[]*/)
 				}
 
 				std::string response = authenticationResult ? "login OK" : "login NOK";
-				serverA.sendUDPMessage(serverRAddress, response);
+				serverA.sendUDPMessage(serverMAddress, response);
 			}
 		}
 	}

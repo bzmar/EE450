@@ -1,4 +1,5 @@
 client.o
+server.o
 serverA.o
 serverD.o
 serverM.o

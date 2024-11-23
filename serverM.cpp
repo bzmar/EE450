@@ -24,87 +24,82 @@ ServerM::ServerM()
 	}
 };
 
-ServerM::~ServerM()
-{
-	if(TCPServerSocket != -1) close(TCPServerSocket);
-	if(UDPServerSocket != -1) close(UDPServerSocket);
-}
 
-bool ServerM::setupTCPServer()
-{
-	TCPServerSocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (TCPServerSocket < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to create TCP Socket.\n");
-		}
-		return false;
-	}
+// bool ServerM::setupTCPServer()
+// {
+// 	TCPServerSocket = socket(AF_INET, SOCK_STREAM, 0);
+// 	if (TCPServerSocket < 0)
+// 	{
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] Failed to create TCP Socket.\n");
+// 		}
+// 		return false;
+// 	}
 
-	sockaddr_in TCPServerAddr;
-	TCPServerAddr.sin_family = AF_INET;
-    TCPServerAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-    TCPServerAddr.sin_port = htons(TCP_PORT);
+// 	sockaddr_in TCPServerAddr;
+// 	TCPServerAddr.sin_family = AF_INET;
+//     TCPServerAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+//     TCPServerAddr.sin_port = htons(TCP_PORT);
 
-    int bindResult = bind(TCPServerSocket, (struct sockaddr*)&TCPServerAddr, sizeof(TCPServerAddr));
-	if(bindResult < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to bind TCP socket.\n");
-		}
-		close(TCPServerSocket);
-		return false;
-	}
+//     int bindResult = bind(TCPServerSocket, (struct sockaddr*)&TCPServerAddr, sizeof(TCPServerAddr));
+// 	if(bindResult < 0)
+// 	{
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] Failed to bind TCP socket.\n");
+// 		}
+// 		close(TCPServerSocket);
+// 		return false;
+// 	}
 
-	int listenResult = listen(TCPServerSocket, 10);
-	if(listenResult < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] TCP Socket failed to listen.\n");
-		}
-		close(TCPServerSocket);
-		return false;
-	}
+// 	int listenResult = listen(TCPServerSocket, 10);
+// 	if(listenResult < 0)
+// 	{
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] TCP Socket failed to listen.\n");
+// 		}
+// 		close(TCPServerSocket);
+// 		return false;
+// 	}
 
-	printf("TCP Server is listening on port %d.\n", TCP_PORT);
-	return true;
-}
+// 	printf("TCP Server is listening on port %d.\n", TCP_PORT);
+// 	return true;
+// }
 
 
-bool ServerM::setupUDPServer()
-{
-	UDPServerSocket = socket(AF_INET, SOCK_DGRAM, 0);
-	if (UDPServerSocket < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to create UDP Socket.\n");
-		}
-		return false;
-	}
+// bool ServerM::setupUDPServer()
+// {
+// 	UDPServerSocket = socket(AF_INET, SOCK_DGRAM, 0);
+// 	if (UDPServerSocket < 0)
+// 	{
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] Failed to create UDP Socket.\n");
+// 		}
+// 		return false;
+// 	}
 
-	sockaddr_in UDPServerAddr;
-	UDPServerAddr.sin_family = AF_INET;
-    UDPServerAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-    UDPServerAddr.sin_port = htons(UDP_PORT);
+// 	sockaddr_in UDPServerAddr;
+// 	UDPServerAddr.sin_family = AF_INET;
+//     UDPServerAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+//     UDPServerAddr.sin_port = htons(UDP_PORT);
 
-    int bindResult = bind(UDPServerSocket, (struct sockaddr*)&UDPServerAddr, sizeof(UDPServerAddr));
-	if(bindResult < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to bind TCP socket.\n");
-		}
-		close(UDPServerSocket);
-		return false;
-	}
+//     int bindResult = bind(UDPServerSocket, (struct sockaddr*)&UDPServerAddr, sizeof(UDPServerAddr));
+// 	if(bindResult < 0)
+// 	{
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] Failed to bind TCP socket.\n");
+// 		}
+// 		close(UDPServerSocket);
+// 		return false;
+// 	}
 
-	printf("UDP Server is listening on port %d.\n", UDP_PORT);
-	return true;
-}
+// 	printf("UDP Server is listening on port %d.\n", UDP_PORT);
+// 	return true;
+// }
 
 void ServerM::acceptTCPConnection()
 {
@@ -212,89 +207,89 @@ void ServerM::processReceivedMessageFromClient(int clientSocket, const std::stri
 	}
 }
 
-bool ServerM::sendTCPMessage(int clientSocket, const std::string& message)
-{
-	if(clientSocket == -1)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] No active TCP client connection.\n");
-		}
-		return false;
-	}
+// bool ServerM::sendTCPMessage(int clientSocket, const std::string& message)
+// {
+// 	if(clientSocket == -1)
+// 	{
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] No active TCP client connection.\n");
+// 		}
+// 		return false;
+// 	}
 
-	ssize_t bytesSent = send(clientSocket, message.c_str(), message.size(), 0);
-	if(bytesSent < 0)
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to send TCP message.\n");
-		}
-		return false;
-	}
-	if(DEBUG)
-	{
-		printf("[DEBUG] Sent TCP message: %s\n", message.c_str());
-	}
-	return true;
-}
+// 	ssize_t bytesSent = send(clientSocket, message.c_str(), message.size(), 0);
+// 	if(bytesSent < 0)
+// 	{
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] Failed to send TCP message.\n");
+// 		}
+// 		return false;
+// 	}
+// 	if(DEBUG)
+// 	{
+// 		printf("[DEBUG] Sent TCP message: %s\n", message.c_str());
+// 	}
+// 	return true;
+// }
 
-std::string ServerM::receiveTCPMessage(int clientSocket)
-{
-	char buffer[BUFFER_SIZE];
-	ssize_t bytesReceived;
-	while((bytesReceived = read(clientSocket, buffer, sizeof(buffer)-1)) > 0)
-	{
-		buffer[bytesReceived] = '\0';
-		if(DEBUG)
-		{
-			printf("[DEBUG] Received from TCP Client: %s.\n", buffer);
-		}
-		processReceivedMessageFromClient(clientSocket, std::string(buffer));
-	}
+// std::string ServerM::receiveTCPMessage(int clientSocket)
+// {
+// 	char buffer[BUFFER_SIZE];
+// 	ssize_t bytesReceived;
+// 	while((bytesReceived = read(clientSocket, buffer, sizeof(buffer)-1)) > 0)
+// 	{
+// 		buffer[bytesReceived] = '\0';
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] Received from TCP Client: %s.\n", buffer);
+// 		}
+// 		processReceivedMessageFromClient(clientSocket, std::string(buffer));
+// 	}
 
-	return std::string(buffer);
-}
+// 	return std::string(buffer);
+// }
 
-bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& serveraddr)
-{
-	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&serveraddr, sizeof(serveraddr));
-	if(bytesSent < 0)
-	{
-		printf("Failed to send UDP message.\n");
-		return false;
-	}
+// bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& serveraddr)
+// {
+// 	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&serveraddr, sizeof(serveraddr));
+// 	if(bytesSent < 0)
+// 	{
+// 		printf("Failed to send UDP message.\n");
+// 		return false;
+// 	}
 
-	printf("Sent UDP message: %s\n", message.c_str());
-	return true;
-}
+// 	printf("Sent UDP message: %s\n", message.c_str());
+// 	return true;
+// }
 
-bool ServerM::receiveUDPMessage(std::string& response)
-{
-	char buffer[BUFFER_SIZE];
-	sockaddr_in clientAddr;
-	socklen_t clientAddrLen = sizeof(clientAddr);
-	ssize_t bytesReceived = recvfrom(UDPServerSocket, buffer, sizeof(buffer)-1, 
-		MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
-	if(bytesReceived > 0)
-	{
-		buffer[bytesReceived] = '\0';
-		if(DEBUG)
-		{
-			printf("[DEBUG] Received from UDP Server: %s.\n", buffer);
-		}
+// bool ServerM::receiveUDPMessage(std::string& response)
+// {
+// 	char buffer[BUFFER_SIZE];
+// 	sockaddr_in clientAddr;
+// 	socklen_t clientAddrLen = sizeof(clientAddr);
+// 	ssize_t bytesReceived = recvfrom(UDPServerSocket, buffer, sizeof(buffer)-1, 
+// 		MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
+// 	if(bytesReceived > 0)
+// 	{
+// 		buffer[bytesReceived] = '\0';
+// 		if(DEBUG)
+// 		{
+// 			printf("[DEBUG] Received from UDP Server: %s.\n", buffer);
+// 		}
 
-		response = std::string(buffer);
-		// sendUDPMessage(response, clientAddr);
-		// processReceivedMessageFromClient(clientAddr, std::string(buffer));
-		return true;
-	}
-	else
-	{
-		printf("[DEBUG] No response from UDP Server.\n");
-	}
-	return false;
-}
+// 		response = std::string(buffer);
+// 		// sendUDPMessage(response, clientAddr);
+// 		// processReceivedMessageFromClient(clientAddr, std::string(buffer));
+// 		return true;
+// 	}
+// 	else
+// 	{
+// 		// printf("[DEBUG] No response from UDP Server.\n");
+// 	}
+// 	return false;
+// }
 
 int main(/*int argc, char const *argv[]*/)
 {

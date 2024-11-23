@@ -1,6 +1,8 @@
 #pragma once
 
 #include "server.h"
+#include <map>
+#include <set>
 
 const int SERVER_R_UDP_PORT = 22000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int SERVER_M_UDP_PORT = 24000 + MY_ID_NUMBER_LAST_THREE_DIGITS;

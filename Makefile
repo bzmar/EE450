@@ -4,16 +4,16 @@ CXX = g++
 CXXFLAGS = -std=c++11 -Wall -Wextra -pthread
 
 # Source files
-SERVER_SRC = server.cpp
 CLIENT_SRC = client.cpp
+SERVER_SRC = server.cpp
 SERVERM_SRC = serverM.cpp
 SERVERA_SRC = serverA.cpp
 SERVERD_SRC = serverD.cpp
 SERVERR_SRC = serverR.cpp
 
 # Object files
-SERVER_OBJ = server.o
 CLIENT_OBJ = client.o
+SERVER_OBJ = server.o
 SERVERM_OBJ = serverM.o
 SERVERA_OBJ = serverA.o
 SERVERD_OBJ = serverD.o
@@ -40,7 +40,7 @@ $(SERVERM_EXE): $(SERVERM_OBJ)
 $(SERVERA_EXE): $(SERVERA_OBJ) $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-$(SERVERD_EXE): $(SERVERD_OBJ)
+$(SERVERD_EXE): $(SERVERD_OBJ) $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 $(SERVERR_EXE): $(SERVERR_OBJ) $(SERVER_OBJ)
@@ -56,13 +56,13 @@ server.o: server.cpp server.h common.h
 serverM.o: serverM.cpp serverM.h common.h
 	$(CXX) $(CXXFLAGS) -c $<
 
-serverA.o: serverA.cpp serverA.h
+serverA.o: serverA.cpp serverA.h server.h 
 	$(CXX) $(CXXFLAGS) -c $<
 
-serverD.o: serverD.cpp serverD.h
+serverD.o: serverD.cpp serverD.h server.h 
 	$(CXX) $(CXXFLAGS) -c $<
 
-serverR.o: serverR.cpp serverR.h
+serverR.o: serverR.cpp serverR.h server.h 
 	$(CXX) $(CXXFLAGS) -c $<
 
 # Clean target

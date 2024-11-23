@@ -9,9 +9,7 @@
 #include <sys/socket.h>
 #include <fstream>
 #include <sstream>
-#include <map>
 #include <iostream>
-#include <set>
 
 const bool DEBUG = true;
 const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;

@@ -359,7 +359,6 @@ int main(/*int argc, char const *argv[]*/)
 	{
 		std::string message;
 		sockaddr_in serverMAddress; 
-		
 		bool messageReceivedFromServerM = serverR.receiveUDPMessage(serverMAddress, message);
 
 		if(messageReceivedFromServerM)
