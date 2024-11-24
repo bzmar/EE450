@@ -1,109 +1,40 @@
 #include "serverM.h"
 
-ServerM::ServerM()
-	: TCPServerSocket(-1)
-	, UDPServerSocket(-1)
-	, TCPServerAddr()
-	, UDPServerAddr()
-	, TCPClientSockets()
-	, clientMutex()
+ServerM::ServerM(const int udpPortNumber, const int tcpPortNumber)
+	: Server(udpPortNumber, tcpPortNumber, "M")
 {
-	if(!setupTCPServer())
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to create TCP server.\n");
-		}
-	}
-	if(!setupUDPServer())
-	{
-		if(DEBUG)
-		{
-			printf("[DEBUG] Failed to create UDP server.\n");
-		}
-	}
+	serverAAddress.sin_family = AF_INET;
+	serverAAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+	serverAAddress.sin_port = htons(SERVER_A_UDP_PORT);
+
+	serverDAddress.sin_family = AF_INET;
+	serverDAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+	serverDAddress.sin_port = htons(SERVER_D_UDP_PORT);
+
+	serverRAddress.sin_family = AF_INET;
+	serverRAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
+	serverRAddress.sin_port = htons(SERVER_R_UDP_PORT);
 };
 
-
-// bool ServerM::setupTCPServer()
-// {
-// 	TCPServerSocket = socket(AF_INET, SOCK_STREAM, 0);
-// 	if (TCPServerSocket < 0)
-// 	{
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] Failed to create TCP Socket.\n");
-// 		}
-// 		return false;
-// 	}
-
-// 	sockaddr_in TCPServerAddr;
-// 	TCPServerAddr.sin_family = AF_INET;
-//     TCPServerAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-//     TCPServerAddr.sin_port = htons(TCP_PORT);
-
-//     int bindResult = bind(TCPServerSocket, (struct sockaddr*)&TCPServerAddr, sizeof(TCPServerAddr));
-// 	if(bindResult < 0)
-// 	{
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] Failed to bind TCP socket.\n");
-// 		}
-// 		close(TCPServerSocket);
-// 		return false;
-// 	}
-
-// 	int listenResult = listen(TCPServerSocket, 10);
-// 	if(listenResult < 0)
-// 	{
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] TCP Socket failed to listen.\n");
-// 		}
-// 		close(TCPServerSocket);
-// 		return false;
-// 	}
-
-// 	printf("TCP Server is listening on port %d.\n", TCP_PORT);
-// 	return true;
-// }
-
-
-// bool ServerM::setupUDPServer()
-// {
-// 	UDPServerSocket = socket(AF_INET, SOCK_DGRAM, 0);
-// 	if (UDPServerSocket < 0)
-// 	{
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] Failed to create UDP Socket.\n");
-// 		}
-// 		return false;
-// 	}
-
-// 	sockaddr_in UDPServerAddr;
-// 	UDPServerAddr.sin_family = AF_INET;
-//     UDPServerAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-//     UDPServerAddr.sin_port = htons(UDP_PORT);
-
-//     int bindResult = bind(UDPServerSocket, (struct sockaddr*)&UDPServerAddr, sizeof(UDPServerAddr));
-// 	if(bindResult < 0)
-// 	{
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] Failed to bind TCP socket.\n");
-// 		}
-// 		close(UDPServerSocket);
-// 		return false;
-// 	}
-
-// 	printf("UDP Server is listening on port %d.\n", UDP_PORT);
-// 	return true;
-// }
-
-void ServerM::acceptTCPConnection()
+int ServerM::getSocketPort(int socket)
 {
-	struct sockaddr_in clientAddr;
+	sockaddr_in socketAddr;
+    socklen_t addrlen = sizeof(socketAddr);
+    if(getsockname(socket,(sockaddr*) &socketAddr, &addrlen) == -1)
+    {
+    	if(DEBUG)
+    	{
+    		printf("[ERR] Could not getsockname(...): %s.\n", std::strerror(errno));
+    	}
+    	return -1;
+    }
+    return ntohs(socketAddr.sin_port);
+}
+
+
+void ServerM::acceptTCPConnectionAndProcessClientRequest()
+{
+	sockaddr_in clientAddr;
 	socklen_t clientAddrLen = sizeof(clientAddr);
 	int clientSocket;
 	clientSocket = accept(TCPServerSocket, (sockaddr*)&clientAddr, (socklen_t*)&clientAddrLen);
@@ -123,181 +54,231 @@ void ServerM::acceptTCPConnection()
 		std::lock_guard<std::mutex> lock(clientMutex);
 		TCPClientSockets.push_back(clientSocket);
 
-		std::thread clientThread(&ServerM::handleTCPClient, this, clientSocket);
+		std::thread clientThread(&ServerM::processClientRequest, this, clientSocket);
 		clientThread.detach();
 	}
 }
 
-void ServerM::handleTCPClient(int clientSocket)
+void ServerM::processClientRequest(int clientSocket)
 {
-	std::string clientMessage = receiveTCPMessage(clientSocket);
-
-
-	close(clientSocket);
-	clientSocket = -1;
-}
-
-bool ServerM::getResponseFromServer(std::string& response)
-{
-	bool responseFromServerReceived = false;
-	do
+	std::string message;
+	bool messageReceived = receiveTCPMessage(clientSocket, message);
+	while(!messageReceived)
 	{
-		responseFromServerReceived = receiveUDPMessage(response);
+		message.clear();
+		messageReceived = receiveTCPMessage(clientSocket, message);
 	}
-	while(!responseFromServerReceived);
 
-	return responseFromServerReceived;
-}
-
-void ServerM::processReceivedMessageFromClient(int clientSocket, const std::string& message)
-{
-	std::istringstream iss(message.c_str());
+	std::istringstream iss(message);
 	std::string action;
 	iss >> action;
-	sockaddr_in targetUDPAddr;
-	targetUDPAddr.sin_family = AF_INET;
-	targetUDPAddr.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
-
 	if(action.compare("login") == 0)
 	{
-		targetUDPAddr.sin_port = htons(SERVERA_PORT);
-		sendUDPMessage(message, targetUDPAddr);
-		std::string responseServerA;
-		bool responseServerAReceived = getResponseFromServer(responseServerA);
-		sendTCPMessage(clientSocket, responseServerA);
+		handleLoginRequest(clientSocket, message);
 	}
 	else if(action.compare("lookup") == 0)
 	{
-		targetUDPAddr.sin_port = htons(SERVERR_PORT);
-		sendUDPMessage(message, targetUDPAddr);
-		std::string responseServerR;
-		bool responseServerRReceived = getResponseFromServer(responseServerR);
-		sendTCPMessage(clientSocket, responseServerR);
+		handleLookupRequest(clientSocket, message);
 	}
 	else if(action.compare("push") == 0)
 	{
-		targetUDPAddr.sin_port = htons(SERVERR_PORT);
-		sendUDPMessage(message, targetUDPAddr);
-		std::string responseServerR;
-		bool responseServerRReceived = getResponseFromServer(responseServerR);
-		sendTCPMessage(clientSocket, responseServerR);
+		handlePushRequest(clientSocket, message);
 	}
 	else if(action.compare("remove") == 0)
 	{
-		targetUDPAddr.sin_port = htons(SERVERR_PORT);
-		sendUDPMessage(message, targetUDPAddr);
-		std::string responseServerR;
-		bool responseServerRReceived = getResponseFromServer(responseServerR);
-		sendTCPMessage(clientSocket, responseServerR);
+		handleRemoveRequest(clientSocket, message);
 	}
 	else if(action.compare("deploy") == 0)
 	{
-		
-		targetUDPAddr.sin_port = htons(SERVERR_PORT);
-		sendUDPMessage(message, targetUDPAddr);
-		std::string responseServerR;
-		bool responseServerRReceived = getResponseFromServer(responseServerR);
-
-		targetUDPAddr.sin_port = htons(SERVERD_PORT);
-		sendUDPMessage(responseServerR, targetUDPAddr);
-		std::string responseServerD;
-		bool responseServerDReceived = getResponseFromServer(responseServerD);
-
-		sendTCPMessage(clientSocket, responseServerD);
+		handleDeployRequest(clientSocket, message);
+	}
+	else if(action.compare("log") == 0)
+	{
+		// handleLogRequest(clientSocket, message);
 	}
 }
 
-// bool ServerM::sendTCPMessage(int clientSocket, const std::string& message)
-// {
-// 	if(clientSocket == -1)
-// 	{
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] No active TCP client connection.\n");
-// 		}
-// 		return false;
-// 	}
+void ServerM::handleLoginRequest(int clientSocket, const std::string& message)
+{
+	std::istringstream iss(message);
+	std::string action, username, password, serverResponse;
+	iss >> action >> username >> password;
+	printf("Server M has received username %s and password %s.\n", username.c_str(), std::string(password.length(), '*').c_str());
+	bool sendStatus = sendUDPMessage(serverAAddress, message);
+	while(!sendStatus)
+	{
+		sendStatus = sendUDPMessage(serverAAddress, message);
+	}
+	printf("Server M has sent authentication request to Server A.\n");
+	bool serverResponseReceived = receiveUDPMessage(serverAAddress, serverResponse);
+	while(!serverResponseReceived)
+	{
+		serverResponseReceived = receiveUDPMessage(serverAAddress, serverResponse);
+	}
+	printf("The main server has received the response from server A using UDP over port %d.\n", getSocketPort(UDPServerSocket));
+	sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	while(!sendStatus)
+	{
+		sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	}
+	printf("The main server has sent the response from server A to client using TCP over port %d", getSocketPort(TCPServerSocket));
+}
 
-// 	ssize_t bytesSent = send(clientSocket, message.c_str(), message.size(), 0);
-// 	if(bytesSent < 0)
-// 	{
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] Failed to send TCP message.\n");
-// 		}
-// 		return false;
-// 	}
-// 	if(DEBUG)
-// 	{
-// 		printf("[DEBUG] Sent TCP message: %s\n", message.c_str());
-// 	}
-// 	return true;
-// }
+void ServerM::handleLookupRequest(int clientSocket, const std::string& message)
+{
+	std::istringstream iss(message);
+	std::string action, targetUser, requestingUser, serverResponse;
+	iss >> action >> targetUser >> requestingUser;
+	printf("The main server has received a lookup request from %s to lookup %s's repository using TCP over port %d.\n", requestingUser.c_str(), targetUser.c_str(), getSocketPort(TCPServerSocket));
+	bool sendStatus = sendUDPMessage(serverRAddress, message);
+	while(!sendStatus)
+	{
+		sendStatus = sendUDPMessage(serverRAddress, message);
+	}
+	printf("The main server has sent the lookup request to server R.\n");
+	bool serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	while(!serverResponseReceived)
+	{
+		serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	}
+	printf("The main server has received the response from server R using UDP over port %d.\n", getSocketPort(UDPServerSocket));
+	sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	while(!sendStatus)
+	{
+		sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	}
+	printf("The main server has sent the response to the client.\n");
+}
 
-// std::string ServerM::receiveTCPMessage(int clientSocket)
-// {
-// 	char buffer[BUFFER_SIZE];
-// 	ssize_t bytesReceived;
-// 	while((bytesReceived = read(clientSocket, buffer, sizeof(buffer)-1)) > 0)
-// 	{
-// 		buffer[bytesReceived] = '\0';
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] Received from TCP Client: %s.\n", buffer);
-// 		}
-// 		processReceivedMessageFromClient(clientSocket, std::string(buffer));
-// 	}
+void ServerM::handlePushRequest(int clientSocket, const std::string& message)
+{
+	std::istringstream iss(message);
+	std::string action, username, filename, overwrite, serverResponse;
+	iss >> action >> username >> filename >> overwrite;
+	if( (overwrite.compare("NOC") == 0) || (overwrite.compare("OC") == 0) )
+	{
+		printf("The main server has received the overwrite confirmation from %s using TCP over port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
+	}
+	else if(overwrite.empty())
+	{
+		printf("The main server has received a push request from %s, using TCP over port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
+	}
+	bool sendStatus = sendUDPMessage(serverRAddress, message);
+	while(!sendStatus)
+	{
+		sendStatus = sendUDPMessage(serverRAddress, message);
+	}
+	if( (overwrite.compare("NOC") == 0) || (overwrite.compare("OC") == 0) )
+	{
+		printf("The main server has sent the overwrite confirmation response to server R.\n");
+	}
+	else if(overwrite.empty())
+	{
+		printf("The main server has rsent the push request to serverR.\n");
+	}
+	bool serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	while(!serverResponseReceived)
+	{
+		serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	}
+	sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	while(!sendStatus)
+	{
+		sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	}
+	if(overwrite.compare("CO") == 0)
+	{
+		printf("The main server has sent the overwrite confirmation request to the client.\n");
+	}
+	else
+	{
+		printf("The main server has sent the push response to the client.\n");
+	}
+}
 
-// 	return std::string(buffer);
-// }
+void ServerM::handleRemoveRequest(int clientSocket, const std::string& message)
+{
+	std::istringstream iss(message);
+	std::string action, username, serverResponse;
+	iss >> action >> username;
+	printf("The main server has received a remove request from member %s over TCP port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
+	bool sendStatus = sendUDPMessage(serverRAddress, message);
+	while(!sendStatus)
+	{
+		sendStatus = sendUDPMessage(serverRAddress, message);
+	}
+	printf("The main server has sent the remove request to server R.\n");
+	bool serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	while(!serverResponseReceived)
+	{
+		serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	}
+	printf("The main server has received confirmation of the remove request done by server R.\n");
+	sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	while(!sendStatus)
+	{
+		sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	}
+	printf("The main server has sent the remove response to the client.\n");
+}
 
-// bool ServerM::sendUDPMessage(const std::string& message, const sockaddr_in& serveraddr)
-// {
-// 	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_CONFIRM, (sockaddr*)&serveraddr, sizeof(serveraddr));
-// 	if(bytesSent < 0)
-// 	{
-// 		printf("Failed to send UDP message.\n");
-// 		return false;
-// 	}
+void ServerM::handleDeployRequest(int clientSocket, const std::string& message)
+{
+	std::istringstream iss(message);
+	std::string action, username, serverResponse;
+	iss >> action >> username;
+	printf("The main server has received a deploy request from member %s over TCP port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
+	bool sendStatus = sendUDPMessage(serverRAddress, message);
+	while(!sendStatus)
+	{
+		sendStatus = sendUDPMessage(serverRAddress, message);
+	}
+	printf("The main server has sent the lookup request to server R.\n");
+	bool serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	while(!serverResponseReceived)
+	{
+		serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	}
+	printf("The main server has received the lookup response from server R.\n");
+	sendStatus = sendUDPMessage(serverDAddress, message);
+	while(!sendStatus)
+	{
+		sendStatus = sendUDPMessage(serverDAddress, message);
+	}
+	printf("The main server has sent the deploy request to server D.\n");
+	serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	while(!serverResponseReceived)
+	{
+		serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	}
+	printf("The main server has received the deploy response from server D.\n");
+	sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	while(!sendStatus)
+	{
+		sendStatus = sendTCPMessage(clientSocket, serverResponse);
+	}
+	std::istringstream iss2(serverResponse);
+	std::string result;
+	iss >> result >> result >> result;
+	if(result.compare("OK") == 0)
+	{
+		printf("The user %s's repository has been deployed at Server D.\n", username.c_str());
+	}
+	printf("The main server has sent the deploy response to the client.\n");
+}
 
-// 	printf("Sent UDP message: %s\n", message.c_str());
-// 	return true;
-// }
-
-// bool ServerM::receiveUDPMessage(std::string& response)
-// {
-// 	char buffer[BUFFER_SIZE];
-// 	sockaddr_in clientAddr;
-// 	socklen_t clientAddrLen = sizeof(clientAddr);
-// 	ssize_t bytesReceived = recvfrom(UDPServerSocket, buffer, sizeof(buffer)-1, 
-// 		MSG_WAITALL, (sockaddr*)&clientAddr, &clientAddrLen);
-// 	if(bytesReceived > 0)
-// 	{
-// 		buffer[bytesReceived] = '\0';
-// 		if(DEBUG)
-// 		{
-// 			printf("[DEBUG] Received from UDP Server: %s.\n", buffer);
-// 		}
-
-// 		response = std::string(buffer);
-// 		// sendUDPMessage(response, clientAddr);
-// 		// processReceivedMessageFromClient(clientAddr, std::string(buffer));
-// 		return true;
-// 	}
-// 	else
-// 	{
-// 		// printf("[DEBUG] No response from UDP Server.\n");
-// 	}
-// 	return false;
-// }
+void handleLogRequest(int clientSocket, const std::string& message)
+{
+	std::istringstream iss(message);
+}
 
 int main(/*int argc, char const *argv[]*/)
 {
-	ServerM* m = new ServerM();
+	ServerM serverM(SERVER_M_UDP_PORT, SERVER_M_TCP_PORT);
 
 	while(1)
 	{
-		m->acceptTCPConnection();
+		serverM.acceptTCPConnectionAndProcessClientRequest();
 	}
 
 

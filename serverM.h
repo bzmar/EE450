@@ -15,24 +15,18 @@ class ServerM : public Server
 {
 	public:
 		ServerM(int udpPortNumber, int tcpPortNumber);
-
-		//Handle TCP Communication
-		// void acceptTCPConnection();
-		// void handleTCPClient(int);
-		// void processReceivedMessageFromClient(int, const std::string&);
-		// bool getResponseFromServer(std::string&);
-		// std::string receiveTCPMessage(int clientSocket);
-		// bool sendTCPMessage(int, const std::string&);
-		
-
-		// //Handle UDP Communication
-		// bool sendUDPMessage(const std::string&, const sockaddr_in&);
-		// bool receiveUDPMessage(std::string&);
-
-		// bool setupTCPServer();
-		// bool setupUDPServer();
+	
+		void acceptTCPConnectionAndProcessClientRequest();
+		void processClientRequest(int clientSocket);
 
 	private:
+		void handleLoginRequest(int clientSocket, const std::string& message);
+		void handleLookupRequest(int clientSocket, const std::string& message);
+		void handlePushRequest(int clientSocket, const std::string& message);
+		void handleRemoveRequest(int clientSocket, const std::string& message);
+		void handleDeployRequest(int clientSocket, const std::string& message);
+		void handleLogRequest(int clientSocket, const std::string& message);
+		int getSocketPort(int socket);
 
 		sockaddr_in serverAAddress;
 		sockaddr_in serverDAddress;

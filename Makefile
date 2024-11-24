@@ -1,3 +1,6 @@
+######
+#geeksforgeeks.org/makefile-in-c-and-its-applications/
+
 # Compiler
 CXX = g++
 # Compiler flags
@@ -34,7 +37,7 @@ all: $(CLIENT_EXE) $(SERVERM_EXE) $(SERVERA_EXE) $(SERVERD_EXE) $(SERVERR_EXE)
 $(CLIENT_EXE): $(CLIENT_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
-$(SERVERM_EXE): $(SERVERM_OBJ)
+$(SERVERM_EXE): $(SERVERM_OBJ) $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 $(SERVERA_EXE): $(SERVERA_OBJ) $(SERVER_OBJ)
@@ -53,7 +56,7 @@ client.o: client.cpp client.h
 server.o: server.cpp server.h common.h
 	$(CXX) $(CXXFLAGS) -c $<
 
-serverM.o: serverM.cpp serverM.h common.h
+serverM.o: serverM.cpp serverM.h server.h
 	$(CXX) $(CXXFLAGS) -c $<
 
 serverA.o: serverA.cpp serverA.h server.h 
