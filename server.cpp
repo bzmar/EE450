@@ -104,7 +104,7 @@ bool Server::receiveTCPMessage(const int socket, std::string& message)
 		message = std::string(buffer);
 		if(DEBUG)
 		{
-			printf("[DEBUG] Received TCP message (port %d): %s\n", getSockPort(socket), buffer);
+			printf("[DEBUG] Received TCP message (port %d): %s\n", getSocketPort(socket), buffer);
 		}
 	}
 	else
@@ -137,7 +137,7 @@ bool Server::receiveUDPMessage(sockaddr_in& srcAddr, std::string& message)
 		buffer[bytesReceived] = '\0';
 		if(DEBUG)
 		{
-			printf("[DEBUG] Received UDP Message(port %d): %s.\n", getSockPort(UDPServerSocket), buffer);
+			printf("[DEBUG] Received UDP Message(port %d): %s.\n", getSocketPort(UDPServerSocket), buffer);
 		}
 		message = std::string(buffer);
 	}
@@ -175,7 +175,7 @@ bool Server::sendTCPMessage(const int socket, const std::string& message)
 	{
 		if(DEBUG)
 		{
-			printf("[DEBUG] Sent TCP message (port %d): %s\n", getSockPort(socket), message.c_str());
+			printf("[DEBUG] Sent TCP message (port %d): %s\n", getSocketPort(socket), message.c_str());
 		}
 	}
 	else
@@ -205,7 +205,7 @@ bool Server::sendUDPMessage(const sockaddr_in& destAddr, const std::string& mess
 	{
 		if(DEBUG)
 		{
-			printf("[DEBUG] Sent UDP message (port %d): %s\n", getSockPort(UDPServerSocket), message.c_str());
+			printf("[DEBUG] Sent UDP message (port %d): %s\n", getSocketPort(UDPServerSocket), message.c_str());
 		}
 	}
 	else
@@ -256,7 +256,7 @@ bool Server::setupUDPSocket(const int udpPortNumber, const std::string& name)
 		return false;
 	}
 
-	printf("\nServer %s is up and running using UDP on port %d.\n", name.c_str(), getSockPort(UDPServerSocket));
+	printf("\nServer %s is up and running using UDP on port %d.\n", name.c_str(), getSocketPort(UDPServerSocket));
 	return true;
 }
 
@@ -308,7 +308,7 @@ bool Server::setupTCPSocket(const int tcpPortNumber, const std::string& name)
 		return false;
 	}
 
-	printf("Server %s is up and running using TCP on port %d.\n", name.c_str(), getSockPort(TCPServerSocket));
+	printf("Server %s is up and running using TCP on port %d.\n", name.c_str(), getSocketPort(TCPServerSocket));
 	return true;
 }
 
@@ -318,7 +318,7 @@ bool Server::setupTCPSocket(const int tcpPortNumber, const std::string& name)
 *  @param udpPortNumber The socket.
 *  @return int The port number.
 */
-int Server::getSockPort(int socket)
+int Server::getSocketPort(int socket)
 {
 	sockaddr_in addr;
     socklen_t addrlen = sizeof(addr);

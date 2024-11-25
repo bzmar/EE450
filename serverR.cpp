@@ -432,6 +432,10 @@ bool ServerR::removeFromRepository(const std::string& username, const std::strin
 	return true;
 }
 
+/*
+*  Main function:
+*  Instantiate server R, then loop as long as server is running listen and process requests
+*/
 int main(/*int argc, char const *argv[]*/)
 {
 	ServerR serverR(SERVER_R_UDP_PORT);

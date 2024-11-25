@@ -29,7 +29,7 @@ public:
 protected:
 	bool setupUDPSocket(int udpPortNumber, const std::string& name);
 	bool setupTCPSocket(int tcpPortNumber, const std::string& name);
-	int getSockPort(int socket);
+	int getSocketPort(int socket);
 
 	int TCPServerSocket;
 	int UDPServerSocket;

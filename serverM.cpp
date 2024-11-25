@@ -1,5 +1,24 @@
+/*
+*  serverM.cpp
+* 
+*  This is the derived class for a server M. It constructs a server with a UDP socket 
+*  and TCP Socket. It also has functions to support the actions for handling requests
+*  from the client to facilitating the communication of these requests to
+*  the appropriate server A/R/D.
+*
+*  @author Brian Mar
+*  EE 450
+*  Socket Programming Project
+*/
+
 #include "serverM.h"
 
+/*
+*  Constructor for server M.
+*
+*  @param udpPortNumber The static port number for the UDP Socket
+*  @param tcpPortNumber The static port number for the TCP Socket
+*/
 ServerM::ServerM(const int udpPortNumber, const int tcpPortNumber)
 	: Server(udpPortNumber, tcpPortNumber, "M")
 {
@@ -16,22 +35,11 @@ ServerM::ServerM(const int udpPortNumber, const int tcpPortNumber)
 	serverRAddress.sin_port = htons(SERVER_R_UDP_PORT);
 };
 
-int ServerM::getSocketPort(int socket)
-{
-	sockaddr_in socketAddr;
-    socklen_t addrlen = sizeof(socketAddr);
-    if(getsockname(socket,(sockaddr*) &socketAddr, &addrlen) == -1)
-    {
-    	if(DEBUG)
-    	{
-    		printf("[ERR] Could not getsockname(...): %s.\n", std::strerror(errno));
-    	}
-    	return -1;
-    }
-    return ntohs(socketAddr.sin_port);
-}
-
-
+/*
+*  Function for accepting a TCP connection through the TCPServerSocket.
+*  It will create a thread for processing the request so multiple connections can be run
+*  in parallel.
+*/
 void ServerM::acceptTCPConnectionAndProcessClientRequest()
 {
 	sockaddr_in clientAddr;
@@ -59,45 +67,64 @@ void ServerM::acceptTCPConnectionAndProcessClientRequest()
 	}
 }
 
+/*
+*  Function to receive the message from the clientSocket then parse it call
+*  the correct function to act on the request.
+*
+*  @param clientSocket the client socket
+*/
 void ServerM::processClientRequest(int clientSocket)
 {
-	std::string message;
-	bool messageReceived = receiveTCPMessage(clientSocket, message);
-	while(!messageReceived)
+	while(1)
 	{
-		message.clear();
-		messageReceived = receiveTCPMessage(clientSocket, message);
+		std::string message;
+		bool messageReceived = receiveTCPMessage(clientSocket, message);
+		while(!messageReceived)
+		{
+			message.clear();
+			messageReceived = receiveTCPMessage(clientSocket, message);
+		}
+	
+		std::istringstream iss(message);
+		std::string action;
+		iss >> action;
+		if(action.compare("login") == 0)
+		{
+			handleLoginRequest(clientSocket, message);
+		}
+		else if(action.compare("lookup") == 0)
+		{
+			handleLookupRequest(clientSocket, message);
+		}
+		else if(action.compare("push") == 0)
+		{
+			handlePushRequest(clientSocket, message);
+		}
+		else if(action.compare("remove") == 0)
+		{
+			handleRemoveRequest(clientSocket, message);
+		}
+		else if(action.compare("deploy") == 0)
+		{
+			handleDeployRequest(clientSocket, message);
+		}
+		else if(action.compare("log") == 0)
+		{
+			// handleLogRequest(clientSocket, message);
+		}
 	}
-
-	std::istringstream iss(message);
-	std::string action;
-	iss >> action;
-	if(action.compare("login") == 0)
-	{
-		handleLoginRequest(clientSocket, message);
-	}
-	else if(action.compare("lookup") == 0)
-	{
-		handleLookupRequest(clientSocket, message);
-	}
-	else if(action.compare("push") == 0)
-	{
-		handlePushRequest(clientSocket, message);
-	}
-	else if(action.compare("remove") == 0)
-	{
-		handleRemoveRequest(clientSocket, message);
-	}
-	else if(action.compare("deploy") == 0)
-	{
-		handleDeployRequest(clientSocket, message);
-	}
-	else if(action.compare("log") == 0)
-	{
-		// handleLogRequest(clientSocket, message);
-	}
+	close(clientSocket);
+	clientSocket = -1;
 }
 
+/*
+*  Function to handle the authentication request from the socket. It will parse the information from the request
+*  then it will send the request to server A, wait for the response from the server and forward
+*  the response back to the client
+*
+*  @param clientSocket the client socket
+*  @param message contains the received message and its contents for the authentication request
+*/
 void ServerM::handleLoginRequest(int clientSocket, const std::string& message)
 {
 	std::istringstream iss(message);
@@ -121,9 +148,17 @@ void ServerM::handleLoginRequest(int clientSocket, const std::string& message)
 	{
 		sendStatus = sendTCPMessage(clientSocket, serverResponse);
 	}
-	printf("The main server has sent the response from server A to client using TCP over port %d", getSocketPort(TCPServerSocket));
+	printf("The main server has sent the response from server A to client using TCP over port %d\n", getSocketPort(TCPServerSocket));
 }
 
+/*
+*  Function to handle the lookup request from the socket. It will parse the information from the request
+*  then it will send the request to server R, wait for the response from the server and forward
+*  the response back to the client
+*
+*  @param clientSocket the client socket
+*  @param message contains the received message and its contents for the authentication request
+*/
 void ServerM::handleLookupRequest(int clientSocket, const std::string& message)
 {
 	std::istringstream iss(message);
@@ -150,6 +185,19 @@ void ServerM::handleLookupRequest(int clientSocket, const std::string& message)
 	printf("The main server has sent the response to the client.\n");
 }
 
+/*
+*  Function to handle the push request from the socket. It will parse the information from the request
+*  then it will send the request to server R, wait for the response from the server and forward
+*  the response back to the client
+*
+*  Legend:  NOC - Overwrite Rejected Response
+*           OC  - Overwrite Accepted Response
+*			EMPTY - Push Request (Initial)
+*           CO - Confirm Overwrite (Ask Client)
+*
+*  @param clientSocket the client socket
+*  @param message contains the received message and its contents for the authentication request
+*/
 void ServerM::handlePushRequest(int clientSocket, const std::string& message)
 {
 	std::istringstream iss(message);
@@ -196,6 +244,14 @@ void ServerM::handlePushRequest(int clientSocket, const std::string& message)
 	}
 }
 
+/*
+*  Function to handle the remove request from the socket. It will parse the information from the request
+*  then it will send the request to server R, wait for the response from the server and forward
+*  the response back to the client
+*
+*  @param clientSocket the client socket
+*  @param message contains the received message and its contents for the authentication request
+*/
 void ServerM::handleRemoveRequest(int clientSocket, const std::string& message)
 {
 	std::istringstream iss(message);
@@ -222,6 +278,15 @@ void ServerM::handleRemoveRequest(int clientSocket, const std::string& message)
 	printf("The main server has sent the remove response to the client.\n");
 }
 
+/*
+*  Function to handle the remove request from the socket. It will parse the information from the request
+*  then it will send the request to server R, wait for the response from the server, after receiving the 
+*  response it will forward the information to server D to deploy, wait for the response and forward
+*  the response back to the client
+*
+*  @param clientSocket the client socket
+*  @param message contains the received message and its contents for the authentication request
+*/
 void ServerM::handleDeployRequest(int clientSocket, const std::string& message)
 {
 	std::istringstream iss(message);
@@ -267,11 +332,18 @@ void ServerM::handleDeployRequest(int clientSocket, const std::string& message)
 	printf("The main server has sent the deploy response to the client.\n");
 }
 
+/*
+*  Function to handle the log request from the socket.
+*/
 void handleLogRequest(int clientSocket, const std::string& message)
 {
 	std::istringstream iss(message);
 }
 
+/*
+*  Main function:
+*  Instantiate server M, then loop as long as server is accept TCP connections and process requests
+*/
 int main(/*int argc, char const *argv[]*/)
 {
 	ServerM serverM(SERVER_M_UDP_PORT, SERVER_M_TCP_PORT);
