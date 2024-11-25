@@ -1,42 +1,59 @@
+/*
+*  server.cpp
+* 
+*  This is the base class for a server. It constructs a server with either a UDP socket 
+*  or a server with UDP socket and TCP socket. The server class implements a send and receive
+*  function for the socket.
+*
+*  @author Brian Mar
+*  EE 450, Session 1
+*  Socket Programming Project
+*/
+
 #include "server.h"
 
+/*
+*  Constructor for server for support of TCP and UDP comunication
+*
+*  @param udpPortNumber The static port number for the UDP Socket
+*  @param tcpPortNumber The static port number for the TCP Socket
+*  @param name The string for the letter of the name of the server (e.g. ServerA = "A")
+*/
 Server::Server(const int udpPortNumber, const int tcpPortNumber, const std::string& name)
 	: TCPServerSocket(-1)
 	, UDPServerSocket(-1)
 {
 	if(DEBUG)
 	{
-		printf("Booting Server %s", name.c_str());
+		printf("Booting Server %s ...", name.c_str());
 	}
-	bool socketCreated = false;
-	do
+	bool socketCreated = setupUDPSocket(udpPortNumber, name);
+	while(!socketCreated)
 	{
-		socketCreated = setupUDPSocket(udpPortNumber, name);
-		if(!socketCreated)
+		if(DEBUG)
 		{
-			if(DEBUG)
-			{
 				printf(".");
-			}
-			std::this_thread::sleep_for(std::chrono::seconds(10));
 		}
-	} while(!socketCreated);
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+	}
 
-	socketCreated = false;
-	do
+	socketCreated = setupTCPSocket(tcpPortNumber, name);
+	while(!socketCreated)
 	{
-		setupTCPSocket(tcpPortNumber, name);
-		if(!socketCreated)
+		if(DEBUG)
 		{
-			if(DEBUG)
-			{
-				printf(".");
-			}
-			std::this_thread::sleep_for(std::chrono::seconds(10));
+			printf(".");
 		}
-	} while(!socketCreated);
+		std::this_thread::sleep_for(std::chrono::seconds(10));
+	}
 }
 
+/*
+*  Constructor for server for support of UDP comunication
+*
+*  @param udpPortNumber The static port number for the UDP Socket
+*  @param name The string for the letter of the name of the server (e.g. ServerA = "A")
+*/
 Server::Server(int udpPortNumber, const std::string& name)
 	: TCPServerSocket(-1)
 	, UDPServerSocket(-1)
@@ -60,23 +77,34 @@ Server::Server(int udpPortNumber, const std::string& name)
 	} while(!socketCreated);
 }
 
+/*
+*  Destructor for server - closes server sockets
+*/
 Server::~Server()
 {
 	if(TCPServerSocket != -1) close(TCPServerSocket);
 	if(UDPServerSocket != -1) close(UDPServerSocket);
 }
 
-bool Server::receiveTCPMessage(const int clientSocket, std::string& message)
+/*
+*  Function used to receiving a message from a client TCP socket
+*  and updates the message param for the consumer to use.
+*
+*  @param socket The socket for the client to communicate with.
+*  @param message The string to store the received message from the socket.
+*  @return bool Returns true if a message was received or false if the message was empty
+*/
+bool Server::receiveTCPMessage(const int socket, std::string& message)
 {
 	char buffer[BUFFER_SIZE];
-	ssize_t bytesReceived = read(clientSocket, buffer, sizeof(buffer)-1);
+	ssize_t bytesReceived = read(socket, buffer, sizeof(buffer)-1);
 	if(bytesReceived > 0)
 	{
 		buffer[bytesReceived] = '\0';
 		message = std::string(buffer);
 		if(DEBUG)
 		{
-			printf("[DEBUG] Received TCP message (port %d): %s\n", getSockPort(clientSocket), buffer);
+			printf("[DEBUG] Received TCP message (port %d): %s\n", getSockPort(socket), buffer);
 		}
 	}
 	else
@@ -89,6 +117,15 @@ bool Server::receiveTCPMessage(const int clientSocket, std::string& message)
 	}
 	return true;
 }
+
+/*
+*  Function used to receiving a message from a client UDP socket
+*  and updates the message param for the consumer to use.
+*
+*  @param srcAddr The address struct which the address of the source will be updated to.
+*  @param message The string to store the received message from the socket.
+*  @return bool Returns true if a message was received or false if the message was empty.
+*/
 bool Server::receiveUDPMessage(sockaddr_in& srcAddr, std::string& message)
 {
 	char buffer[BUFFER_SIZE];
@@ -115,10 +152,16 @@ bool Server::receiveUDPMessage(sockaddr_in& srcAddr, std::string& message)
 	return true;
 }
 
-
-bool Server::sendTCPMessage(const int clientSocket, const std::string& message)
+/*
+*  Function used to sending a message to a client TCP socket.
+*
+*  @param clientSocket The socket for target receiver.
+*  @param message The string of the message to send.
+*  @return bool Returns true if a message was sent or false if the send was unsuccessful.
+*/
+bool Server::sendTCPMessage(const int socket, const std::string& message)
 {
-	if(clientSocket == -1)
+	if(socket == -1)
 	{
 		if(DEBUG)
 		{
@@ -127,12 +170,12 @@ bool Server::sendTCPMessage(const int clientSocket, const std::string& message)
 		return false;
 	}
 
-	ssize_t bytesSent = send(clientSocket, message.c_str(), message.size(), 0);
+	ssize_t bytesSent = send(socket, message.c_str(), message.size(), 0);
 	if(bytesSent > 0)
 	{
 		if(DEBUG)
 		{
-			printf("[DEBUG] Sent TCP message (port %d): %s\n", getSockPort(clientSocket), message.c_str());
+			printf("[DEBUG] Sent TCP message (port %d): %s\n", getSockPort(socket), message.c_str());
 		}
 	}
 	else
@@ -147,6 +190,14 @@ bool Server::sendTCPMessage(const int clientSocket, const std::string& message)
 	return true;
 
 }
+
+/*
+*  Function used to sending a message to a client UDP socket.
+*
+*  @param destAddr The address for the target receiver.
+*  @param message The string of the message to send.
+*  @return bool Returns true if a message was sent or false if the send was unsuccessful.
+*/
 bool Server::sendUDPMessage(const sockaddr_in& destAddr, const std::string& message)
 {
 	ssize_t bytesSent = sendto(UDPServerSocket, message.c_str(), message.size(), MSG_DONTWAIT, (sockaddr*)&destAddr, sizeof(destAddr));
@@ -168,6 +219,14 @@ bool Server::sendUDPMessage(const sockaddr_in& destAddr, const std::string& mess
 	return true;
 }
 
+
+/*
+*  Function used to create a UDP socket and assign it an address.
+*
+*  @param udpPortNumber The UDP port for the socket.
+*  @param name The string for the letter of the name of the server (e.g. ServerA = "A").
+*  @return bool Returns true if socket was created and bounded or false if failed.
+*/
 bool Server::setupUDPSocket(const int udpPortNumber, const std::string& name)
 {
 	UDPServerSocket = socket(AF_INET, SOCK_DGRAM, 0);
@@ -201,6 +260,13 @@ bool Server::setupUDPSocket(const int udpPortNumber, const std::string& name)
 	return true;
 }
 
+/*
+*  Function used to create a TCP socket and assign it an address.
+*
+*  @param tcpPortNumber The TCP port for the socket.
+*  @param name The string for the letter of the name of the server (e.g. ServerA = "A").
+*  @return bool Returns true if socket was created and bounded or false if failed.
+*/
 bool Server::setupTCPSocket(const int tcpPortNumber, const std::string& name)
 {
 	TCPServerSocket = socket(AF_INET, SOCK_STREAM, 0);
@@ -246,6 +312,12 @@ bool Server::setupTCPSocket(const int tcpPortNumber, const std::string& name)
 	return true;
 }
 
+/*
+*  Function used to get the assigned port number of a socket.
+*
+*  @param udpPortNumber The socket.
+*  @return int The port number.
+*/
 int Server::getSockPort(int socket)
 {
 	sockaddr_in addr;
