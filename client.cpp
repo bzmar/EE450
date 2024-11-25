@@ -355,6 +355,10 @@ bool Client::getUserCommand(std::string& command)
 				validCommand = true;
 			}
 		}
+		else
+		{
+			printf("The command was entered incorrectly. Please try again.\n");
+		}
 	}
 	else
 	{
@@ -364,13 +368,17 @@ bool Client::getUserCommand(std::string& command)
 			if(parameter.empty())
 			{
 				validCommand = false;
-				printf("Error: Username is required. Please specify a username to lookup.");
+				printf("Error: Username is required. Please specify a username to lookup.\n----Start a new request----\n");
 			}
 			else
 			{
 				command = action + std::string(" ") + parameter + std::string(" guest");
 				validCommand = true;
 			}
+		}
+		else
+		{
+			printf("Guests can only use the lookup command.\n");
 		}
 	}
 
@@ -570,7 +578,6 @@ int main(int argc, char const *argv[])
 		while(!validCommand)
 		{
 			command.clear();
-			printf("The command was entered incorrectly. Please try again.\n");
 			validCommand = client.getUserCommand(command);
 		}
 		client.handleUserCommand(command);

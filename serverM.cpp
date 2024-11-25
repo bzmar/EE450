@@ -205,7 +205,7 @@ void ServerM::handlePushRequest(int clientSocket, const std::string& message)
 	iss >> action >> username >> filename >> overwrite;
 	if( (overwrite.compare("NOC") == 0) || (overwrite.compare("OC") == 0) )
 	{
-		printf("The main server has received the overwrite confirmation from %s using TCP over port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
+		printf("The main server has received the overwrite confirmation response from %s using TCP over port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
 	}
 	else if(overwrite.empty())
 	{
@@ -222,7 +222,7 @@ void ServerM::handlePushRequest(int clientSocket, const std::string& message)
 	}
 	else if(overwrite.empty())
 	{
-		printf("The main server has rsent the push request to serverR.\n");
+		printf("The main server has sent the push request to server R.\n");
 	}
 	bool serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
 	while(!serverResponseReceived)
@@ -305,16 +305,16 @@ void ServerM::handleDeployRequest(int clientSocket, const std::string& message)
 		serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
 	}
 	printf("The main server has received the lookup response from server R.\n");
-	sendStatus = sendUDPMessage(serverDAddress, message);
+	sendStatus = sendUDPMessage(serverDAddress, serverResponse);
 	while(!sendStatus)
 	{
-		sendStatus = sendUDPMessage(serverDAddress, message);
+		sendStatus = sendUDPMessage(serverDAddress, serverResponse);
 	}
 	printf("The main server has sent the deploy request to server D.\n");
-	serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+	serverResponseReceived = receiveUDPMessage(serverDAddress, serverResponse);
 	while(!serverResponseReceived)
 	{
-		serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
+		serverResponseReceived = receiveUDPMessage(serverDAddress, serverResponse);
 	}
 	printf("The main server has received the deploy response from server D.\n");
 	sendStatus = sendTCPMessage(clientSocket, serverResponse);

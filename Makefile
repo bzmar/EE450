@@ -24,11 +24,11 @@ SERVERR_OBJ = serverR.o
 
 
 # Executable names
-CLIENT_EXE = Client
-SERVERM_EXE = ServerM
-SERVERA_EXE = ServerA
-SERVERD_EXE = ServerD
-SERVERR_EXE = ServerR
+CLIENT_EXE = client
+SERVERM_EXE = serverM
+SERVERA_EXE = serverA
+SERVERD_EXE = serverD
+SERVERR_EXE = serverR
 
 # Default target
 all: $(CLIENT_EXE) $(SERVERM_EXE) $(SERVERA_EXE) $(SERVERD_EXE) $(SERVERR_EXE)

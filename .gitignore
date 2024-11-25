@@ -4,9 +4,10 @@ serverA.o
 serverD.o
 serverM.o
 serverR.o
-Client
-ServerA
-ServerD
-ServerM
-ServerR
+client
+serverA
+serverD
+serverM
+serverR
+deployed.txt
 .DS_STORE
