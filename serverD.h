@@ -1,3 +1,13 @@
+/*
+*  serverD.h
+* 
+*  This is the header file for the declaration of Server D, derived class.
+*
+*  @author Brian Mar
+*  EE 450
+*  Socket Programming Project
+*/
+
 #pragma once
 
 #include "server.h"

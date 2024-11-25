@@ -6,7 +6,7 @@
 *  function for the socket.
 *
 *  @author Brian Mar
-*  EE 450, Session 1
+*  EE 450
 *  Socket Programming Project
 */
 

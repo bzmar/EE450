@@ -1,5 +1,21 @@
+/*
+*  serverA.cpp
+* 
+*  This is the derived class for a server A. It constructs a server with a UDP socket 
+*  and functions to support the actions for handling authentication.
+*
+*  @author Brian Mar
+*  EE 450
+*  Socket Programming Project
+*/
+
 #include "serverA.h"
 
+/*
+*  Constructor for server A.
+*
+*  @param udpPortNumber The static port number for the UDP Socket
+*/
 ServerA::ServerA(int udpPortNumber)
 	: Server(udpPortNumber, "A")
 {
@@ -16,20 +32,30 @@ ServerA::ServerA(int udpPortNumber)
 	// }
 }
 
-bool ServerA::receiveTCPMessage(const int socket, std::string& message)
+/*
+*  Override for the virtual receiveTCPMessage(...) function as server A does not Support TCP
+*/
+bool ServerA::receiveTCPMessage(const int /*socket*/, std::string& /*message*/)
 {
 	throw std::runtime_error("Server A does not support TCP functionality");
 
 	return false;
 }
 
-bool ServerA::sendTCPMessage(const int socket, const std::string& message)
+/*
+*  Override for the virtual sendTCPMessage(...) function as server A does not Support TCP
+*/
+bool ServerA::sendTCPMessage(const int /*socket*/, const std::string& /*message*/)
 {
 	throw std::runtime_error("Server A does not support TCP functionality");
 
 	return false;
 }
 
+/*
+*  Function reads from a members.txt which contains lines space delimited
+*  for a username password. Parses and stores into a std::map for faster authentication.
+*/
 void ServerA::generateMembers(const std::string filename)
 {
 	std::ifstream file(filename);
@@ -47,6 +73,16 @@ void ServerA::generateMembers(const std::string filename)
 	file.close();
 }
 
+
+/*
+*  Function to encrypt the password based on the specifications:
+*  Offset each ASCII character (A-Z, a-z, 0-9) by 3
+*  Cyclicaly update characters and numbers for overflow
+*  Case Sensitive
+*  Special characters are not modified
+*
+*  @param password the original password to be encrypted
+*/
 std::string ServerA::encryptPassword(const std::string& password)
 {
 	std::string encryptedPassword;
@@ -72,37 +108,40 @@ std::string ServerA::encryptPassword(const std::string& password)
 	return encryptedPassword;
 }
 
-bool ServerA::pingServerM()
-{
-	bool pingStatus = sendUDPMessage(serverMAddress, "PING A M");
-	while(!pingStatus)
-	{
-		pingStatus = sendUDPMessage(serverMAddress, "PING A M");
-	}
+// bool ServerA::pingServerM()
+// {
+// 	bool pingStatus = sendUDPMessage(serverMAddress, "PING A M");
+// 	while(!pingStatus)
+// 	{
+// 		pingStatus = sendUDPMessage(serverMAddress, "PING A M");
+// 	}
 
-	std::string response;
-	bool pingResponse = receiveUDPMessage(serverMAddress, response);
-	while(!pingResponse)
-	{
-		pingResponse = receiveUDPMessage(serverMAddress, response);
-	}
+// 	std::string response;
+// 	bool pingResponse = receiveUDPMessage(serverMAddress, response);
+// 	while(!pingResponse)
+// 	{
+// 		pingResponse = receiveUDPMessage(serverMAddress, response);
+// 	}
 
-	if(response.compare("PING M A") != 0)
-	{
-		if(DEBUG)
-		{
-			printf("[ERR] Server M is currently offline. Please make sure the server is online. \n");
-		}
-		return false;
-	}
-	return true;
-}
+// 	if(response.compare("PING M A") != 0)
+// 	{
+// 		if(DEBUG)
+// 		{
+// 			printf("[ERR] Server M is currently offline. Please make sure the server is online. \n");
+// 		}
+// 		return false;
+// 	}
+// 	return true;
+// }
 
-sockaddr_in ServerA::getServerMAddress()
-{
-	return serverMAddress;
-}
 
+/*
+*  Function verify if the username and password is a valid member.
+*
+*  @param username the username to be verified
+*  @param password the password to be verified
+*  @return bool true if the username and password is in members.txt, false if not.
+*/
 bool ServerA::authenticate(const std::string& username, const std::string& password)
 {
 	bool authenticationResult = false;
@@ -121,6 +160,10 @@ bool ServerA::authenticate(const std::string& username, const std::string& passw
 	return authenticationResult;
 }
 
+/*
+*  Main function:
+*  Instantiate server A, then loop as long as server is open and listen for commands
+*/
 int main(/*int argc, char const *argv[]*/)
 {
 	ServerA serverA(SERVER_A_UDP_PORT);

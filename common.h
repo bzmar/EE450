@@ -1,3 +1,13 @@
+/*
+*  common.h
+* 
+*  This is a header file for common includes and constants.
+*
+*  @author Brian Mar
+*  EE 450
+*  Socket Programming Project
+*/
+
 #pragma once
 
 #include <iostream>
@@ -11,7 +21,7 @@
 #include <sstream>
 #include <iostream>
 
-const bool DEBUG = true;
+const bool DEBUG = false;
 const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;
 const std::string LOCALHOST = "127.0.0.1";
 const int BUFFER_SIZE = 2048;

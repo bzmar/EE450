@@ -1,5 +1,21 @@
+/*
+*  serverR.cpp
+* 
+*  This is the derived class for a server R. It constructs a server with a UDP socket 
+*  and functions to support the actions for handling repository.
+*
+*  @author Brian Mar
+*  EE 450
+*  Socket Programming Project
+*/
+
 #include "serverR.h"
 
+/*
+*  Constructor for server R.
+*
+*  @param udpPortNumber The static port number for the UDP Socket
+*/
 ServerR::ServerR(int udpPortNumber)
 	: Server(udpPortNumber, "R")
 {
@@ -10,20 +26,30 @@ ServerR::ServerR(int udpPortNumber)
 	serverMAddress.sin_port = htons(SERVER_M_UDP_PORT);
 }
 
-bool ServerR::receiveTCPMessage(const int socket, std::string& message)
+/*
+*  Override for the virtual receiveTCPMessage(...) function as server R does not Support TCP
+*/
+bool ServerR::receiveTCPMessage(const int /*socket*/, std::string& /*message*/)
 {
 	throw std::runtime_error("Server A does not support TCP functionality");
 
 	return false;
 }
 
-bool ServerR::sendTCPMessage(const int socket, const std::string& message)
+/*
+*  Override for the virtual sendTCPMessage(...) function as server R does not Support TCP
+*/
+bool ServerR::sendTCPMessage(const int /*socket*/, const std::string& /*message*/)
 {
 	throw std::runtime_error("Server A does not support TCP functionality");
 
 	return false;
 }
 
+/*
+*  Function reads from a filenames.txt which contains lines space delimited
+*  for a username filename. Parses and stores into a std::map for faster lookup.
+*/
 void ServerR::generateRepository()
 {
 	std::ifstream file(FILENAMES_FILE);
@@ -45,6 +71,12 @@ void ServerR::generateRepository()
 	file.close();
 }
 
+/*
+*  Function takes a command and parses it to call the appropriate actionable function
+*  lookup, push, remove, deploy.
+*
+*  @param message The command for server R.
+*/
 void ServerR::parseAndExecuteCommand(const std::string& message)
 {
 	std::istringstream iss(message);
@@ -91,6 +123,15 @@ void ServerR::parseAndExecuteCommand(const std::string& message)
 	}
 }
 
+/*
+*  Function performs the lookup command, generates a response and sends a response
+*  to the main server.
+*
+*  Legend: UNF - user not found
+*          UF - user found
+
+*  @param username Target username to be lookup.
+*/
 void ServerR::lookup(const std::string& username)
 {
 	std::string response = std::string("lookup ") + username;
@@ -112,9 +153,21 @@ void ServerR::lookup(const std::string& username)
 	printf("Server R has finished sending the response to the main server.\n");
 }
 
+/*
+*  Function performs the push command by adding the username and filename to the
+*  filenames.txt and repository, generates a response and sends a response
+*  to the main server.
+*
+*  Design overwrite flag:  OC - overwrite confirmed by user
+*                          NOC - overwrite rejected by user
+*                          EMPTY - initial push
+*
+*  @param username Target username to be lookup.
+*  @param filename The filename to be pushed to the repository(filenames.txt)
+*  @param overwrite The flag is used for the user confirmation when pushing a exisiting file
+*/
 void ServerR::push(const std::string& username, const std::string& filename, const std::string& overwrite)
 {
-	printf("Server R has received a push request from the main server.\n");
 	std::string response;
 	if(!username.empty() && !filename.empty())
 	{
@@ -124,7 +177,7 @@ void ServerR::push(const std::string& username, const std::string& filename, con
 			bool addSuccess = addToRepository(username, filename);
 			if(removeSuccess && addSuccess)
 			{
-				printf("%s requested overwrite; overwrite successful.\n", username.c_str());
+				printf("User requested overwrite; overwrite successful.\n");
 				response = std::string("push ") + username + std::string(" ") + filename + std::string(" OK");
 			}
 			else
@@ -143,7 +196,7 @@ void ServerR::push(const std::string& username, const std::string& filename, con
 		else if(overwrite.compare("NOC") == 0)
 		{
 			response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
-			printf("%s declined overwrite.\n", username.c_str());
+			printf("Overwrite denied.\n");
 		}
 		else
 		{
@@ -160,7 +213,7 @@ void ServerR::push(const std::string& username, const std::string& filename, con
 				{
 					response = std::string("push ") + username + std::string(" ") + filename + std::string(" NOK");
 				}
-				printf("%s uploaded successfully to %s's repository.\n", filename.c_str(), username.c_str());
+				printf("%s uploaded successfully.\n", filename.c_str());
 			}
 			else
 			{
@@ -187,6 +240,14 @@ void ServerR::push(const std::string& username, const std::string& filename, con
 	sendUDPMessage(serverMAddress, response);
 }
 
+/*
+*  Function performs the remove command to remove the username and filename line
+*  from the filesnames.txt and repository, generates a response and sends a response
+*  to the main server.
+*
+*  @param username Target username to be lookup.
+*  @param filename The filename to be pushed to the repository(filenames.txt)
+*/
 void ServerR::remove(const std::string& username, const std::string& filename)
 {
 	std::string response;
@@ -231,6 +292,12 @@ void ServerR::remove(const std::string& username, const std::string& filename)
 	sendUDPMessage(serverMAddress, response);
 }
 
+/*
+*  Function performs the deploy command to lookup and generates a response 
+*  and sends a response to the main server.
+*
+*  @param username Target username to deploy.
+*/
 void ServerR::deploy(const std::string& username)
 {
 	std::string response = std::string("deploy ") + username; 
@@ -244,6 +311,13 @@ void ServerR::deploy(const std::string& username)
 	printf("Server R has finished sending the response to the main server.\n");
 }
 
+/*
+*  Function performs the add to repository by adding the file to the end of the filenames.txt 
+*  and adds to the map of repository.
+*
+*  @param username The username of the repository.
+*  @param filename The filename to be added to the repository
+*/
 bool ServerR::addToRepository(const std::string& username, const std::string& filename)
 {
 	std::string entry = username + " " + filename;
@@ -265,6 +339,13 @@ bool ServerR::addToRepository(const std::string& username, const std::string& fi
 	return true;
 }
 
+/*
+*  Function performs the remove from repository by removing the line containing the username
+*  and filename and then remove from the map of repository.
+*
+*  @param username The username of the repository.
+*  @param filename The filename to be removed to the repository
+*/
 bool ServerR::removeFromRepository(const std::string& username, const std::string& filename)
 {
 	std::string target = username + " " + filename;

@@ -1,3 +1,14 @@
+/*
+*  server.h
+* 
+*  This is header file to declare the base class of server.
+*  See server.cpp for the implementation.
+*
+*  @author Brian Mar
+*  EE 450
+*  Socket Programming Project
+*/
+
 #pragma once
 
 #include "common.h"
