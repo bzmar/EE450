@@ -20,6 +20,8 @@
 #include <fstream>
 #include <sstream>
 #include <iostream>
+#include <cstring>
+#include <string>
 
 const bool DEBUG = false;
 const int MY_ID_NUMBER_LAST_THREE_DIGITS = 209;

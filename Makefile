@@ -50,7 +50,7 @@ $(SERVERR_EXE): $(SERVERR_OBJ) $(SERVER_OBJ)
 	$(CXX) $(CXXFLAGS) -o $@ $^
 
 # Rules to compile object files with explicit dependencies
-client.o: client.cpp client.h
+client.o: client.cpp client.h common.h
 	$(CXX) $(CXXFLAGS) -c $<
 
 server.o: server.cpp server.h common.h

@@ -1,30 +1,85 @@
+/*
+*  server.cpp
+* 
+*  This is the class for a client which uses TCP communication. It collects user input
+*  requests, forwards them to the main server, waits for a response and outputs 
+*  messages for the client.
+*
+*  @author Brian Mar
+*  EE 450
+*  Socket Programming Project
+*/
+
 #include "client.h"
 
-Client::Client(const std::string un, const std::string pw)
-	: isMember()
-	, username(un)
-	, password(pw)
+/*
+*  Constructor for client using TCP comunication
+*
+*  @param username The username if provided from program startup, otherwise it will be empty
+*  @param password The password if provided from program startup, otherwise it will be empty
+*/
+Client::Client(const std::string username, const std::string password)
+	: IsMember(false)
+	, Username(username)
+	, Password(password)
 	, TCPSocket(-1)
 {
-	if( ((username.compare("guest") != 0) && (password.compare("guest") != 0)) ||
-		(username.empty() && password.empty()) )
+	//setup TCP socket
+	bool setupStatus = setupTCPSocket();
+	while(!setupStatus)
 	{
-		getLogin();
+		printf("[ERR]Failed to create TCP server.\n");
 	}
-	std::cout << username << " " << password << std::endl;
+	
+	// Authenticate for the login provided from terminal command ./Client username passsword
+	if(!Username.empty() && !Password.empty())
+	{
+		bool result = false;
+		result = getAuthentication();
+		while(!result)
+		{
+			printf("The credentials are incorrect. Please try again.\n");
+			getLogin(); // get new login
+			result = getAuthentication(); // try to authenticate again
+		}		
+	}
+	else
+	{
+		// no login was provided so collect login and authenticate
+		getLogin();
+		bool result = false;
+		result = getAuthentication();
+		while(!result)
+		{
+			printf("The credentials are incorrect. Please try again.\n");
+			getLogin(); // get new login
+			result = getAuthentication(); // authenticate
+		}		
+	}
 };
 
+/*
+*  Destructor for client using TCP comunication
+*  Close opened socket on exit if not already closed.
+*/
 Client::~Client()
 {
 	if(TCPSocket != -1) close(TCPSocket);
 }
 
-bool Client::setupTCPClient()
+
+/*
+*  Function used to create a TCP Socket. Not bound will dynamically get a port number
+*/
+bool Client::setupTCPSocket()
 {
 	TCPSocket = socket(AF_INET, SOCK_STREAM, 0);
 	if (TCPSocket < 0)
 	{
-		printf("Failed to create TCP Socket.\n");
+		if(DEBUG)
+		{
+			printf("[ERR] Failed to create TCP Socket.\n");
+		}
 		return false;
 	}
 
@@ -34,7 +89,10 @@ bool Client::setupTCPClient()
     serverAddr.sin_port = htons(SERVER_PORT);
 
     if (connect(TCPSocket, (struct sockaddr*)&serverAddr, sizeof(serverAddr)) < 0) {
-        printf("Failed connection with the server.\n");
+    	if(DEBUG)
+		{
+        	printf("[ERR] Failed connection with the server.\n");
+        }
         close(TCPSocket);
         TCPSocket = -1;
         return false;
@@ -43,22 +101,39 @@ bool Client::setupTCPClient()
     sockaddr_in clientAddr;
     socklen_t addrlen = sizeof(clientAddr);
     int getsock_check = getsockname(TCPSocket, (struct sockaddr*)&clientAddr, &addrlen);
-    if (getsock_check == -1) {
-        printf("Failed to getsockname().\n");
+    if (getsock_check == -1) 
+    {
+    	if(DEBUG)
+		{
+        	printf("[ERR]Failed to getsockname().\n");
+        }
         close(TCPSocket);
         TCPSocket = -1;
         return false;
     }
 
-    printf("Connected from local IP: %s on port: %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+    if(DEBUG)
+	{
+    	printf("Connected from local IP: %s on port: %d\n", inet_ntoa(clientAddr.sin_addr), ntohs(clientAddr.sin_port));
+    }
+    printf("The client is up and running.\n");
     return true;
 }
 
+/*
+*  Function used to receive a message from the TCP Socket and store in response string buffer
+*
+*  @param response buffer to store the message from the TCP socket
+*  @return bool true if message was received, false if no message was received.
+*/
 bool Client::receiveMessage(std::string& response)
 {
 	if(TCPSocket == -1)
 	{
-		printf("Socket is not connected.\n");
+		if(DEBUG)
+		{
+			printf("Socket is not connected.\n");
+		}
 		return false;
 	}
 
@@ -71,79 +146,117 @@ bool Client::receiveMessage(std::string& response)
     	int getsock_check = getsockname(TCPSocket, (struct sockaddr*)&localAddr, &addrlen);
     	if (getsock_check == -1) 
     	{
-        	printf("Failed to getsockname().\n");
+    		if(DEBUG)
+			{
+        		printf("Failed to getsockname().\n");
+        	}
         	close(TCPSocket);
         	TCPSocket = -1;
         	return false;
     	}
-    	printf("The client received the response from the main server using TCP over port %d.", ntohs(localAddr.sin_port));
+    	printf("The client received the response from the main server using TCP over port %d.\n", ntohs(localAddr.sin_port));
 
 		buffer[bytesReceived] = '\0';
-		printf("Received Message from TCP Client: %s.\n", buffer);
+		if(DEBUG)
+		{
+			printf("[DEBUG] Received TCP Message: %s.\n", buffer);
+		}
 		response = std::string(buffer);
 		return true;
 	}
-	
-	std::cout << "Received nothing" << std::endl;
+	if(DEBUG)
+	{
+		printf("[DEBUG] Received Empty TCP Message.\n");
+	}
 	return false;
 }
 
+/*
+*  Function used to send a message to the Server over TCP Socket from string buffer message
+*
+*  @param message the string of the message to be sent to the TCP Server
+*  @return bool true if message was sent successfully, false if no message was not sent successfully.
+*/
 bool Client::sendMessage(const std::string& message)
 {
 	if(TCPSocket == -1)
 	{
-		printf("Socket is not connected.\n");
+		if(DEBUG)
+		{
+			printf("[DEBUG] Socket is not connected.\n");
+		}
 		return false;
 	}
 
 	ssize_t bytesSent = send(TCPSocket, message.c_str(), message.size(), 0);
 	if(bytesSent < 0)
 	{
-		printf("Error Sending Message.\n");
+		if(DEBUG)
+		{
+			printf("[DEBUG] Error Sending Message.\n");
+		}
 		return false;
 	}
 
-	printf("Sent Message: %s.\n", message.c_str());
+	if(DEBUG)
+	{
+		printf("[DEBUG] Sent TCP Message: %s.\n", message.c_str());
+	}
 	return true;
 		
 }
 
+/*
+*  Function collect user input from the console. Will collect a username and a password and
+*  verify that input is not empty.
+*/
 void Client::getLogin()
 {
-	while(username.empty())
+	while(Username.empty())
 	{
 		printf("Please enter username (usename cannot be empty): ");
-		std::getline(std::cin, username);
-		std::cout << "[DEBUG] User Entered username: " << username << std::endl;
+		std::getline(std::cin, Username);
+		if(DEBUG)
+		{
+			printf("[DEBUG] User Entered username: %s.\n", Username.c_str());
+		}
 	}
-	while(password.empty())
+	while(Password.empty())
 	{
 		printf("Please enter password (password cannot be empty): ");
-		std::getline(std::cin, password);
-		std::cout << "[DEBUG] User Entered password: " << password << std::endl;
+		std::getline(std::cin, Password);
+		if(DEBUG)
+		{
+			printf("[DEBUG] User Entered username: %s.\n", Password.c_str());
+		}
 	}
 }
 
-
+/*
+*  Function for authenticate login. If both the username and password are guest,
+*  then automatically grant guest access. Otherwise send the request to the main server
+*  for login authentication and wait for the response from the main server. (Main server will
+*  send to server A to verify)
+*/
 bool Client::getAuthentication()
 {
-	if((username.compare("guest") == 0) && (password.compare("guest") == 0))
+	if((Username.compare("guest") == 0) && (Password.compare("guest") == 0))
 	{
-		isMember = false;
+		printf("You have been granted guest access.\n");
+		IsMember = false;
 		return true;
 	}
 	else
 	{
-		const std::string command = std::string("login ") + username + std::string(" ") + password;
+		const std::string command = std::string("login ") + Username + std::string(" ") + Password;
 		sendMessage(command);
 
 		std::string response;
-		bool receivedResponse = false;
-		do
+		bool receivedResponse = receiveMessage(response);
+		while (!receivedResponse)
 		{
 			receivedResponse = receiveMessage(response);
 		}
-		while (!receivedResponse);
 	
 		std::istringstream iss(response);
 		std::string key, result;
@@ -154,19 +267,27 @@ bool Client::getAuthentication()
 		}
 		if(key.compare("login") == 0 && result.compare(std::string("OK")) == 0)
 		{
-			isMember = true;
+			IsMember = true;
 			printf("You have been granted member access.\n");
 			return true;
 		}
 	}
-	username.clear();
-	password.clear();
+	Username.clear();
+	Password.clear();
 	return false;
 }
 
+/*
+*  Function for collecting user request in the screen based on member or non member. 
+*  The user request will be created in the form of a command to send to the server and 
+*  stored in the command buffer.
+*  
+*  @param command The string buffer to hold the command for sending to server.
+*  @return bool returns if the command was a valid command for the guest/member privilege.
+*/
 bool Client::getUserCommand(std::string& command)
 {
-	if(isMember)
+	if(IsMember)
 	{
 		printf("Please enter the command:\n<lookup <username>>\n<push <filename>>\n<remove <filename>>\n<deploy>\n<log>\n");
 	}
@@ -184,7 +305,7 @@ bool Client::getUserCommand(std::string& command)
 				[] (unsigned char c){ return std::tolower(c); } );
 
 	bool validCommand = false;
-	if(isMember)
+	if(IsMember)
 	{
 		validCommand = (VALID_MEMBER_ACTIONS.find(action) != VALID_MEMBER_ACTIONS.end());
 		if(validCommand)
@@ -193,12 +314,12 @@ bool Client::getUserCommand(std::string& command)
 			{
 				if(parameter.empty())
 				{
-					command = action + std::string(" ") + username + std::string(" ") + username;
-					printf("Username is not specified. Will lookup %s\n", username.c_str());
+					command = action + std::string(" ") + Username + std::string(" ") + Username;
+					printf("Username is not specified. Will lookup %s\n", Username.c_str());
 				}
 				else
 				{
-					command = action + std::string(" ") + parameter + std::string(" ") + username;
+					command = action + std::string(" ") + parameter + std::string(" ") + Username;
 				}
 				validCommand = true;
 			}
@@ -211,7 +332,7 @@ bool Client::getUserCommand(std::string& command)
 				}
 				else
 				{
-					command = action + std::string(" ") + username + std::string(" ") + parameter;
+					command = action + std::string(" ") + Username + std::string(" ") + parameter;
 					validCommand = true;
 				}
 			}
@@ -224,13 +345,13 @@ bool Client::getUserCommand(std::string& command)
 				}
 				else
 				{
-					command = action + std::string(" ") + username + std::string(" ") + parameter;
+					command = action + std::string(" ") + Username + std::string(" ") + parameter;
 					validCommand = true;
 				}
 			}
 			else if(action.compare("deploy") == 0)
 			{
-				command = action + std::string(" ") + username;
+				command = action + std::string(" ") + Username;
 				validCommand = true;
 			}
 		}
@@ -256,35 +377,65 @@ bool Client::getUserCommand(std::string& command)
 	return validCommand;
 }
 
+/*
+*  Function for collecting to send the command to the main server and output console
+*  information for the client.
+*  
+*  @param command The string of command for sending to server.
+*/
 void Client::handleUserCommand(const std::string& command)
 {
 	std::istringstream iss(command);
-	std::string action, parameter;
-	iss >> action >> parameter;
+	std::string action, username, parameter;
+	iss >> action >> username >> parameter;
 
 	if(action.compare("lookup") == 0)
 	{
-		printf("%s sent a lookup request for %s to the main server\n", username.c_str(), parameter.c_str());
+		printf("%s sent a lookup request to the main server\n", Username.c_str());
 	}
 	else if(action.compare("push") == 0)
 	{
-		printf("%s sent a push request to the main server for file: %s\n", username.c_str(), parameter.c_str());
+		if(DEBUG)
+		{
+			printf("%s sent a push request to the main server for file: %s\n", Username.c_str(), parameter.c_str());
+		}
+		else
+		{
+			printf("%s sent a push request to the main server.\n", Username.c_str());
+		}
 	}
 	else if(action.compare("remove") == 0)
 	{
-		printf("%s sent a remove request to the main server for file %s\n", username.c_str(), parameter.c_str());
+		if(DEBUG)
+		{
+			printf("%s sent a remove request to the main server for file %s\n", Username.c_str(), parameter.c_str());
+		}
+		else
+		{
+			printf("%s sent a remove request to the main server.\n", Username.c_str());
+		}
 	}
 	else if(action.compare("deploy") == 0)
 	{
-		printf("%s sent a deploy request to the main server\n", username.c_str());
+		printf("%s sent a deploy request to the main server\n", Username.c_str());
 	}
 	else if(action.compare("log") == 0)
 	{
-		printf("%s sent a log request to the main server\n", username.c_str());
+		printf("%s sent a log request to the main server\n", Username.c_str());
 	}
 	sendMessage(command);
 }
 
+/*
+*  Function for receiving the response from the main server, parsing and processing
+*  the response.
+*
+*  Legend: UNF - User not Found
+*          UF  - User found
+*          CO  - confirm overwrite (ask user)
+*  
+*  @param response The string of response from the server.
+*/
 bool Client::handleServerResponse(const std::string& response)
 {
 	std::istringstream iss(response);
@@ -317,7 +468,6 @@ bool Client::handleServerResponse(const std::string& response)
 				printf("Empty Repository.\n");
 			}
 		}
-		printf("----Start a new request----\n");
 	}
 	else if(action.compare("push") == 0)
 	{
@@ -326,7 +476,7 @@ bool Client::handleServerResponse(const std::string& response)
 		if(result.compare("CO") == 0)
 		{
 			std::string userResponse, message;
-			printf("%s exists in %s's repository, do you want to overwrite (Y/N)?", filename.c_str(), username.c_str());
+			printf("%s exists in %s's repository, do you want to overwrite (Y/N)?\n", filename.c_str(), Username.c_str());
 			std::getline(std::cin, userResponse);
 			std::transform( userResponse.begin(), userResponse.end(), userResponse.begin(),
 				[] (unsigned char c){ return std::tolower(c); } );
@@ -343,11 +493,11 @@ bool Client::handleServerResponse(const std::string& response)
 		}
 		else if(result.compare("OK") == 0)
 		{
-			printf("%s pushed successfully.", filename.c_str());
+			printf("%s pushed successfully.\n", filename.c_str());
 		}
 		else
 		{
-			printf("%s was not pushed successfully.", filename.c_str());
+			printf("%s was not pushed successfully.\n", filename.c_str());
 		}
 		
 	}
@@ -357,11 +507,11 @@ bool Client::handleServerResponse(const std::string& response)
 		iss >> username >> filename >> result;
 		if(result.compare("OK") == 0)
 		{
-			printf("The remove request was successful.");
+			printf("The remove request was successful.\n");
 		}
 		else
 		{
-			printf("The remove request was unsuccessful.");
+			printf("The remove request was unsuccessful.\n");
 		}
 	}
 	else if(action.compare("deploy") == 0)
@@ -370,16 +520,21 @@ bool Client::handleServerResponse(const std::string& response)
 		iss >> username >> result;
 		if(result.compare("OK") == 0)
 		{
-			printf("The following files in %s repository have been deployed:\n", username.c_str());
+			printf("The following files in %s repository have been deployed:\n", Username.c_str());
 			std::string file;
 			while (iss >> file)
 			{
+				if(file.compare("NO_FILES_DEPLOYED") == 0)
+				{
+					printf("\n");
+					break;
+				}
 				printf("%s\n", file.c_str());
 			}
 		}
 		else
 		{
-			printf("Deployment request unsuccessful.");
+			printf("Deployment request unsuccessful.\n");
 		}
 	}
 	// else if(action.compare("log") == 0)
@@ -389,6 +544,14 @@ bool Client::handleServerResponse(const std::string& response)
 	return true;
 }
 
+/*
+*  Main function runs the initialization of the client. If arguments are provided for username and password
+*  then assign them else they will be empty. Runs the loop to get a user request, listens to server responses,
+*  call to handle the response.
+*  
+*  @param argc the count of arguments
+*  @param argv the arguments vector
+*/
 int main(int argc, char const *argv[])
 {
 	std::string username;
@@ -398,58 +561,38 @@ int main(int argc, char const *argv[])
 		username = argv[1];
 		password = argv[2];
 	}
-
-	Client* c = new Client(username, password);
-	
-	while(!c->setupTCPClient())
-	{
-		printf("Failed to create TCP server.\n");
-	}
-
-	printf("The client is up and running.\n");
-
-	bool result = false;
-	do
-	{
-		result = c->getAuthentication();
-		if(!result)
-		{
-			printf("The credentials are incorrect. Please try again.\n");
-			c->getLogin();
-		}
-		
-	} while(!result);
+	Client client(username, password); 
 
 	while(1)
 	{
 		std::string command;
-		bool validCommand = c->getUserCommand(command);
+		bool validCommand = client.getUserCommand(command);
 		while(!validCommand)
 		{
 			command.clear();
 			printf("The command was entered incorrectly. Please try again.\n");
-			validCommand = c->getUserCommand(command);
+			validCommand = client.getUserCommand(command);
 		}
-
-		c->handleUserCommand(command);
+		client.handleUserCommand(command);
 
 		std::string response;
 		bool messageReceived = false;
 		do
 		{
-			messageReceived = c->receiveMessage(response);
+			messageReceived = client.receiveMessage(response);
 		} while (!messageReceived);
 
-		bool completedTransaction = c->handleServerResponse(response);
+		bool completedTransaction = client.handleServerResponse(response);
 		while(!completedTransaction)
 		{
 			messageReceived = false;
 			do
 			{
-				messageReceived = c->receiveMessage(response);
+				messageReceived = client.receiveMessage(response);
 			} while (!messageReceived);
-			completedTransaction = c->handleServerResponse(response);
+			completedTransaction = client.handleServerResponse(response);
 		}
+		printf("----Start a new request----\n");
 	}
 
 	return 0;
