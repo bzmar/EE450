@@ -13,6 +13,11 @@ Supported Features:
 Tested and Verified on Ubuntu 20.04
 
 Prerequisites:
+Ubuntu 20.04
+CMake: sudo apt-get install make
+pthread: sudo apt-get install libpthread-stubs0-dev
+
+Files required:
 filenames.txt (must include file in the directory)
 members.txt (must include file in the directory)
 
@@ -31,6 +36,19 @@ members.txt (must include file in the directory)
 |---serverM.cpp 	# server M derived class implementation
 |---serverR.h 		# server R derived class header
 |---serverR.cpp 	# server R derived class implementation
+
+
+How to run:
+1)Compile all executables by running 'make all'
+2)Run Server M by './serverM'
+3)Run Server A by './serverA'
+4)Run Server R by './serverR'
+5)Run Server D by './serverD'
+6)Run Client by './client <username> <password>'
+                './client' will start the client by prompting for login's.
+                './client guest guest' will start the client in guest mode.
+You'll need to be authenticated as a member or guest to run commands. Once authenticated you'll be prompted to enter commands.
+**'Make Clean' will erase all files from compile, executables and generated program files: deployed.txt and logs.txt
 
 Design Documentation:
                                        Server A

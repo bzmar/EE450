@@ -325,7 +325,7 @@ bool Client::getUserCommand(std::string& command)
 				{
 					command = action + std::string(" ") + parameter + std::string(" ") + Username;
 				}
-				validCommand = true;
+				validCommand = true; //[lookup] <target username> <client username>
 			}
 			else if(action.compare("push") == 0)
 			{
@@ -337,7 +337,7 @@ bool Client::getUserCommand(std::string& command)
 				else
 				{
 					command = action + std::string(" ") + Username + std::string(" ") + parameter;
-					validCommand = true;
+					validCommand = true; //[push] <client username> <filename>
 				}
 			}
 			else if(action.compare("remove") == 0)
@@ -350,18 +350,18 @@ bool Client::getUserCommand(std::string& command)
 				else
 				{
 					command = action + std::string(" ") + Username + std::string(" ") + parameter;
-					validCommand = true;
+					validCommand = true; //[remove] <client username> <filename>
 				}
 			}
 			else if(action.compare("deploy") == 0)
 			{
 				command = action + std::string(" ") + Username;
-				validCommand = true;
+				validCommand = true; //[deploy] <client username>
 			}
 			else if(action.compare("log") == 0)
 			{
 				command = action + std::string(" ") + Username;
-				validCommand = true;
+				validCommand = true; //[log] <client username>
 			}
 		}
 		else
@@ -382,7 +382,7 @@ bool Client::getUserCommand(std::string& command)
 			else
 			{
 				command = action + std::string(" ") + parameter + std::string(" guest");
-				validCommand = true;
+				validCommand = true; //[lookup] <target username> <client username>
 			}
 		}
 		else

@@ -350,6 +350,14 @@ void ServerM::handleDeployRequest(int clientSocket, const std::string& message)
 	printf("The main server has sent the deploy response to the client.\n");
 }
 
+/*
+*  Helper function to help log the requests to an output file log.txt.
+*  It will append to the file if already open the username, the request and the parameter.
+*
+*  @param username the username for the client making the request
+*  @param request the request
+*  @param parameter the parameter for the request (optional)
+*/
 void ServerM::log(std::string& username, std::string& request, std::string& parameter)
 {
 	std::ofstream file(LOG_FILE, std::ios::app);
@@ -368,7 +376,11 @@ void ServerM::log(std::string& username, std::string& request, std::string& para
 }
 
 /*
-*  Function to handle the log request from the socket.
+*  Function to handle the log request from the socket. It will generate a response to the client
+*  with the file name needed for console output.
+*
+*  @param clientSocket the socket for the client
+*  @param message the request received from the socket
 */
 void ServerM::handleLogRequest(int clientSocket, const std::string& message)
 {
