@@ -71,3 +71,4 @@ Works Cited:
 Server and Client Socket Reference (https://geeksforgeeks.org/udp-server-client-implementation-c)
 Network programming(https://beej.us/guide/bgnet/html/split)
 Cmake(https://cs.swarthmore.edu/~newhall/unixhelp/howto_makefiles.html)
+Threading (https://geeksforgeeks.org/how-to-detach-a-thread-in-cpp)
