@@ -19,6 +19,7 @@ const int SERVER_R_UDP_PORT = 22000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int SERVER_D_UDP_PORT = 23000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int SERVER_M_UDP_PORT = 24000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
 const int SERVER_M_TCP_PORT = 25000 + MY_ID_NUMBER_LAST_THREE_DIGITS;
+const std::string LOG_FILE = "log.txt";
 
 
 class ServerM : public Server
@@ -36,6 +37,7 @@ class ServerM : public Server
 		void handleRemoveRequest(int clientSocket, const std::string& message);
 		void handleDeployRequest(int clientSocket, const std::string& message);
 		void handleLogRequest(int clientSocket, const std::string& message);
+		void log(std::string& username, std::string& request, std::string& parameter);
 
 		sockaddr_in serverAAddress;
 		sockaddr_in serverDAddress;

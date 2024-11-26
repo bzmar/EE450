@@ -110,7 +110,7 @@ void ServerM::processClientRequest(int clientSocket)
 		}
 		else if(action.compare("log") == 0)
 		{
-			// handleLogRequest(clientSocket, message);
+			handleLogRequest(clientSocket, message);
 		}
 	}
 	close(clientSocket);
@@ -164,6 +164,7 @@ void ServerM::handleLookupRequest(int clientSocket, const std::string& message)
 	std::istringstream iss(message);
 	std::string action, targetUser, requestingUser, serverResponse;
 	iss >> action >> targetUser >> requestingUser;
+	log(requestingUser, action, targetUser);
 	printf("The main server has received a lookup request from %s to lookup %s's repository using TCP over port %d.\n", requestingUser.c_str(), targetUser.c_str(), getSocketPort(TCPServerSocket));
 	bool sendStatus = sendUDPMessage(serverRAddress, message);
 	while(!sendStatus)
@@ -209,6 +210,7 @@ void ServerM::handlePushRequest(int clientSocket, const std::string& message)
 	}
 	else if(overwrite.empty())
 	{
+		log(username, action, filename);
 		printf("The main server has received a push request from %s, using TCP over port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
 	}
 	bool sendStatus = sendUDPMessage(serverRAddress, message);
@@ -269,8 +271,9 @@ void ServerM::handlePushRequest(int clientSocket, const std::string& message)
 void ServerM::handleRemoveRequest(int clientSocket, const std::string& message)
 {
 	std::istringstream iss(message);
-	std::string action, username, serverResponse;
-	iss >> action >> username;
+	std::string action, username, filename, serverResponse;
+	iss >> action >> username >> filename;
+	log(username, action, filename);
 	printf("The main server has received a remove request from member %s over TCP port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
 	bool sendStatus = sendUDPMessage(serverRAddress, message);
 	while(!sendStatus)
@@ -304,8 +307,9 @@ void ServerM::handleRemoveRequest(int clientSocket, const std::string& message)
 void ServerM::handleDeployRequest(int clientSocket, const std::string& message)
 {
 	std::istringstream iss(message);
-	std::string action, username, serverResponse;
+	std::string action, username, dummy, serverResponse;
 	iss >> action >> username;
+	log(username, action, dummy);
 	printf("The main server has received a deploy request from member %s over TCP port %d.\n", username.c_str(), getSocketPort(TCPServerSocket));
 	bool sendStatus = sendUDPMessage(serverRAddress, message);
 	while(!sendStatus)
@@ -346,12 +350,41 @@ void ServerM::handleDeployRequest(int clientSocket, const std::string& message)
 	printf("The main server has sent the deploy response to the client.\n");
 }
 
+void ServerM::log(std::string& username, std::string& request, std::string& parameter)
+{
+	std::ofstream file(LOG_FILE, std::ios::app);
+
+	if(!file.is_open())
+	{
+		if(DEBUG)
+		{
+			printf("[PANIC] Error in opening file %s", LOG_FILE.c_str());
+		}
+	}
+
+	file << username << " " << request << " " << parameter << '\n';
+
+	file.close();
+}
+
 /*
 *  Function to handle the log request from the socket.
 */
-void handleLogRequest(int clientSocket, const std::string& message)
+void ServerM::handleLogRequest(int clientSocket, const std::string& message)
 {
+	printf("The main server has received the deploy response from server D.\n");
 	std::istringstream iss(message);
+	std::string username, action, dummy;
+	iss >> action >> username;
+	log(username, action, dummy);
+	std::string response = std::string("log ") + LOG_FILE;	
+
+	bool sendStatus = sendTCPMessage(clientSocket, response);
+	while(!sendStatus)
+	{
+		sendStatus = sendTCPMessage(clientSocket, response);
+	}
+	printf("The main server has sent the log response to the client.\n");
 }
 
 /*

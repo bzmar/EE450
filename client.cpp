@@ -354,6 +354,11 @@ bool Client::getUserCommand(std::string& command)
 				command = action + std::string(" ") + Username;
 				validCommand = true;
 			}
+			else if(action.compare("log") == 0)
+			{
+				command = action + std::string(" ") + Username;
+				validCommand = true;
+			}
 		}
 		else
 		{
@@ -545,10 +550,42 @@ bool Client::handleServerResponse(const std::string& response)
 			printf("Deployment request unsuccessful.\n");
 		}
 	}
-	// else if(action.compare("log") == 0)
-	// {
+	else if(action.compare("log") == 0)
+	{
+		std::string filename;
+		iss >> filename;
+
+		std::ifstream file(filename);
+
+		if(!file.is_open())
+		{
+			if(DEBUG)
+			{
+				printf("[ERR] Error in opening file %s", filename.c_str());
+			}
+		}
+
 		
-	// }
+		int i = 1;
+		std::string line, username, action, parameter;
+		while(std::getline(file, line)) {
+			std::istringstream iss2(line);
+			iss2 >> username >> action >> parameter;
+			if(username.compare(Username) == 0)
+			{
+				if(parameter.empty())
+				{
+					printf("%d. %s\n", i, action.c_str());
+				}
+				else
+				{
+					printf("%d. %s %s\n", i, action.c_str(), parameter.c_str());
+				}
+				i++;
+			}
+		}
+		file.close();
+	}
 	return true;
 }
 
