@@ -1,10 +1,16 @@
-######
-#geeksforgeeks.org/makefile-in-c-and-its-applications/
+#  Makefile
+# 
+#  Cmake configuration file for project
+#
+#  @author Brian Mar
+#  EE 450
+#  Socket Programming Project
+#
 
 # Compiler
-CXX = g++
+CC = g++
 # Compiler flags
-CXXFLAGS = -std=c++11 -Wall -Wextra -pthread
+CFLAGS = -std=c++11 -Wall -Wextra -pthread
 
 # Source files
 CLIENT_SRC = client.cpp
@@ -38,38 +44,38 @@ all: $(CLIENT_EXE) $(SERVERM_EXE) $(SERVERA_EXE) $(SERVERD_EXE) $(SERVERR_EXE)
 
 # Rules to compile executables
 $(CLIENT_EXE): $(CLIENT_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 $(SERVERM_EXE): $(SERVERM_OBJ) $(SERVER_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 $(SERVERA_EXE): $(SERVERA_OBJ) $(SERVER_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 $(SERVERD_EXE): $(SERVERD_OBJ) $(SERVER_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 $(SERVERR_EXE): $(SERVERR_OBJ) $(SERVER_OBJ)
-	$(CXX) $(CXXFLAGS) -o $@ $^
+	$(CC) $(CFLAGS) -o $@ $^
 
 # Rules to compile object files with explicit dependencies
 client.o: client.cpp client.h common.h
-	$(CXX) $(CXXFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 server.o: server.cpp server.h common.h
-	$(CXX) $(CXXFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 serverM.o: serverM.cpp serverM.h server.h
-	$(CXX) $(CXXFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 serverA.o: serverA.cpp serverA.h server.h 
-	$(CXX) $(CXXFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 serverD.o: serverD.cpp serverD.h server.h 
-	$(CXX) $(CXXFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 serverR.o: serverR.cpp serverR.h server.h 
-	$(CXX) $(CXXFLAGS) -c $<
+	$(CC) $(CFLAGS) -c $<
 
 # Clean target
 clean:
