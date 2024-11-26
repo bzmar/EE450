@@ -6,6 +6,8 @@
 #  EE 450
 #  Socket Programming Project
 #
+#  References used for Makefile:
+#  Cmake(https://cs.swarthmore.edu/~newhall/unixhelp/howto_makefiles.html)
 
 # Compiler
 CC = g++

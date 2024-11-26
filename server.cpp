@@ -8,6 +8,11 @@
 *  @author Brian Mar
 *  EE 450
 *  Socket Programming Project
+*
+*  References used to develop UDP and TCP socket code below:
+*  Server and Client Socket Reference (https://geeksforgeeks.org/udp-server-client-implementation-c)
+*  Network programming(https://beej.us/guide/bgnet/html/split)
+*  Threading (https://geeksforgeeks.org/how-to-detach-a-thread-in-cpp)
 */
 
 #include "server.h"
