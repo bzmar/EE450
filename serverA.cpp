@@ -24,12 +24,6 @@ ServerA::ServerA(int udpPortNumber)
 	serverMAddress.sin_family = AF_INET;
 	serverMAddress.sin_addr.s_addr = inet_addr(LOCALHOST.c_str());
 	serverMAddress.sin_port = htons(SERVER_M_UDP_PORT);
-
-	// bool pingResult = pingServerM();
-	// while(!pingResult)
-	// {
-	// 	pingResult = pingServerM();
-	// }
 }
 
 /*
@@ -107,33 +101,6 @@ std::string ServerA::encryptPassword(const std::string& password)
 	}
 	return encryptedPassword;
 }
-
-// bool ServerA::pingServerM()
-// {
-// 	bool pingStatus = sendUDPMessage(serverMAddress, "PING A M");
-// 	while(!pingStatus)
-// 	{
-// 		pingStatus = sendUDPMessage(serverMAddress, "PING A M");
-// 	}
-
-// 	std::string response;
-// 	bool pingResponse = receiveUDPMessage(serverMAddress, response);
-// 	while(!pingResponse)
-// 	{
-// 		pingResponse = receiveUDPMessage(serverMAddress, response);
-// 	}
-
-// 	if(response.compare("PING M A") != 0)
-// 	{
-// 		if(DEBUG)
-// 		{
-// 			printf("[ERR] Server M is currently offline. Please make sure the server is online. \n");
-// 		}
-// 		return false;
-// 	}
-// 	return true;
-// }
-
 
 /*
 *  Function verify if the username and password is a valid member.

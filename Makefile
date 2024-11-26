@@ -30,6 +30,9 @@ SERVERA_EXE = serverA
 SERVERD_EXE = serverD
 SERVERR_EXE = serverR
 
+# Files Created From Executables
+DEPLOYED_FILE = deployed.txt
+
 # Default target
 all: $(CLIENT_EXE) $(SERVERM_EXE) $(SERVERA_EXE) $(SERVERD_EXE) $(SERVERR_EXE)
 
@@ -70,6 +73,6 @@ serverR.o: serverR.cpp serverR.h server.h
 
 # Clean target
 clean:
-	rm -f $(CLIENT_OBJ) $(SERVERM_OBJ) $(SERVERA_OBJ) $(SERVERD_OBJ) $(SERVERR_OBJ) $(CLIENT_EXE) $(SERVERM_EXE) $(SERVERA_EXE) $(SERVERD_EXE) $(SERVERR_EXE)
+	rm -f $(CLIENT_OBJ) $(SERVERM_OBJ) $(SERVERA_OBJ) $(SERVERD_OBJ) $(SERVERR_OBJ) $(CLIENT_EXE) $(SERVERM_EXE) $(SERVERA_EXE) $(SERVERD_EXE) $(SERVERR_EXE) $(DEPLOYED_FILE)
 
 .PHONY: all clean

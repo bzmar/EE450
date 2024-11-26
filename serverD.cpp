@@ -60,7 +60,6 @@ void ServerD::handleReceivedMessage(const std::string& message)
  		std::string files;
 		std::getline(iss >> std::ws, files);
 		bool deploySuccess = deploy(username, files);
-
 		respondToServer(deploySuccess, username, files);
 	}
 	else

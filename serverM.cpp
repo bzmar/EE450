@@ -229,6 +229,20 @@ void ServerM::handlePushRequest(int clientSocket, const std::string& message)
 	{
 		serverResponseReceived = receiveUDPMessage(serverRAddress, serverResponse);
 	}
+	std::istringstream iss2(serverResponse);
+	action.clear();
+	username.clear();
+	filename.clear();
+	overwrite.clear();
+	iss2 >> action >> username >> filename >> overwrite;
+	if(overwrite.compare("CO") == 0)
+	{
+		printf("The main server has received the response from server R using UDP over port %d, asking for overwrite confirmation\n", getSocketPort(UDPServerSocket));
+	}
+	else
+	{
+		printf("The main server has received the response from server R using UDP over port %d.\n", getSocketPort(UDPServerSocket));
+	}
 	sendStatus = sendTCPMessage(clientSocket, serverResponse);
 	while(!sendStatus)
 	{
@@ -317,17 +331,17 @@ void ServerM::handleDeployRequest(int clientSocket, const std::string& message)
 		serverResponseReceived = receiveUDPMessage(serverDAddress, serverResponse);
 	}
 	printf("The main server has received the deploy response from server D.\n");
+	std::istringstream iss2(serverResponse);
+	std::string dummy1, dummy2, result;
+	iss2 >> dummy1 >> dummy2 >> result;
+	if(result.compare("OK") == 0)
+	{
+		printf("The user %s's repository has been deployed at Server D.\n", username.c_str());
+	}
 	sendStatus = sendTCPMessage(clientSocket, serverResponse);
 	while(!sendStatus)
 	{
 		sendStatus = sendTCPMessage(clientSocket, serverResponse);
-	}
-	std::istringstream iss2(serverResponse);
-	std::string result;
-	iss >> result >> result >> result;
-	if(result.compare("OK") == 0)
-	{
-		printf("The user %s's repository has been deployed at Server D.\n", username.c_str());
 	}
 	printf("The main server has sent the deploy response to the client.\n");
 }
