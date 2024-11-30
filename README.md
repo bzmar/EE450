@@ -9,6 +9,9 @@ Supported Features:
 - Remove
 - Deploy
 - Log (Extra credit)
+- All functions have block code commenting how the functions work.
+  Code is written in a maintainable way by being human readable so
+  you can be able to understand what is going on.
 
 Tested and Verified on Ubuntu 20.04
 
@@ -83,7 +86,10 @@ Log: "log [client username]"
 All other messages are forwarded from the server A/R/D to server M. Please reference the design messages from lines 51-61.
 
 Idiosyncrasies:
-If you boot servers while zombie process exists, it will not fully be able to create the sockets. Solution: ps -aux | kill -9 [zombie process id] or wait about 1 minute and it should resolve.
+- If you boot servers while zombie process exists, it will not fully be able to create the sockets. Solution: ps -aux | kill -9 [zombie process id] or wait about 
+  1 minute and it should resolve.
+- Deployed follows the design specifications of the assignment. It is a assumed that one deployment per user. The first deployment will create the deployed.txt
+  file with line <username> <deployed filename>. The subsequent deployments will append to this file. If you duplicate a deploy for a user it will duplicated the lines from the previous deployment(s).
 
 Works Cited:
 Server and Client Socket Reference (https://geeksforgeeks.org/udp-server-client-implementation-c)

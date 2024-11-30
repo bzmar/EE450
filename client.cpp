@@ -512,6 +512,10 @@ bool Client::handleServerResponse(const std::string& response)
 		{
 			printf("%s pushed successfully.\n", filename.c_str());
 		}
+		else if(result.compare("IF") == 0)
+		{
+			printf("Error: Invalid file: %s\n", filename.c_str());
+		}
 		else
 		{
 			printf("%s was not pushed successfully.\n", filename.c_str());

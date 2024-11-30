@@ -202,7 +202,13 @@ void ServerR::push(const std::string& username, const std::string& filename, con
 		{
 			std::set<std::string> filenames = membersRepository[username];
 			auto searchResult = filenames.find(filename);
-			if(searchResult == filenames.end())
+			std::ifstream file(filename);
+			if(!file.good())
+			{
+				response = std::string("push ") + username + std::string(" ") + filename + std::string(" IF");
+				printf("%s is invalid. File does not exist or does not have permissions to push.\n", filename.c_str());
+			}
+			else if(searchResult == filenames.end())
 			{
 				bool addSuccess = addToRepository(username, filename);
 				if(addSuccess)
